@@ -125,9 +125,52 @@ export default appTarget => {
                 console.warn('⚠️ renderAppFunction 尚未初始化');
             }
         }
+        
+        // 处理加载项目请求
+        if (event.data && event.data.type === 'LOAD_PROJECT') {
+            console.log('📥 收到父窗口的加载项目请求:', event.data.data);
+            
+            if (window.scratchLoadProjectData) {
+                window.scratchLoadProjectData(event.data.data)
+                    .then(() => {
+                        console.log('✅ 项目数据已加载到 Scratch 编辑器');
+                        
+                        // 向父窗口发送确认消息
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'LOAD_PROJECT_ACK',
+                                data: {
+                                    success: true,
+                                    timestamp: new Date().toISOString()
+                                }
+                            }, '*');
+                        }
+                    })
+                    .catch((error) => {
+                        console.error('❌ 加载项目数据失败:', error);
+                        
+                        // 向父窗口发送失败消息
+                        if (window.parent && window.parent !== window) {
+                            window.parent.postMessage({
+                                type: 'LOAD_PROJECT_ACK',
+                                data: {
+                                    success: false,
+                                    error: error.message,
+                                    timestamp: new Date().toISOString()
+                                }
+                            }, '*');
+                        }
+                    });
+            } else {
+                console.error('❌ scratchLoadProjectData 函数不存在');
+            }
+        }
     });
     
     console.log('✅ postMessage 监听器已设置');
+
+    // 全局变量：存储 VM 实例的引用
+    window.__scratchVM = null;
 
     // 从本地存储获取用户信息
     const getUserInfo = () => {
@@ -246,6 +289,32 @@ export default appTarget => {
                     onOpenRegistration={handleOpenRegistration}
                     onLogOut={handleLogOut}
                     renderLogin={renderLogin}
+                    
+                    // VM 实例回调（用于导出项目数据）
+                    onVmInit={(vm) => {
+                        console.log('✅ VM 实例已初始化');
+                        window.__scratchVM = vm;
+                        
+                        // 导出项目数据的全局函数
+                        window.scratchExportProjectData = () => {
+                            if (vm) {
+                                console.log('📤 导出项目数据...');
+                                return vm.toJSON();
+                            }
+                            console.warn('⚠️ VM 实例不可用');
+                            return null;
+                        };
+                        
+                        // 加载项目数据的全局函数
+                        window.scratchLoadProjectData = (projectData) => {
+                            if (vm) {
+                                console.log('📥 加载项目数据...');
+                                return vm.loadProject(projectData);
+                            }
+                            console.warn('⚠️ VM 实例不可用');
+                            return Promise.reject('VM not available');
+                        };
+                    }}
                 />
         );
     };
