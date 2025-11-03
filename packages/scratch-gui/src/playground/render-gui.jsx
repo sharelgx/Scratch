@@ -165,6 +165,27 @@ export default appTarget => {
                 console.error('❌ scratchLoadProjectData 函数不存在');
             }
         }
+        
+        // 处理导出项目请求（用于测试）
+        if (event.data && event.data.type === 'EXPORT_PROJECT_REQUEST') {
+            console.log('📤 收到父窗口的导出项目请求');
+            
+            if (window.scratchExportProjectData) {
+                const projectData = window.scratchExportProjectData();
+                
+                if (projectData) {
+                    console.log('✅ 导出成功，发送响应');
+                    window.parent.postMessage({
+                        type: 'EXPORT_PROJECT_RESPONSE',
+                        data: projectData
+                    }, '*');
+                } else {
+                    console.error('❌ 导出失败');
+                }
+            } else {
+                console.error('❌ scratchExportProjectData 函数不存在');
+            }
+        }
     });
     
     console.log('✅ postMessage 监听器已设置');
