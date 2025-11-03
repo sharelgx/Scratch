@@ -76,11 +76,15 @@ export default appTarget => {
 
     // 监听来自父窗口的消息
     window.addEventListener('message', (event) => {
-        console.log('📬 iframe 收到任何 postMessage:', {
-            origin: event.origin,
-            data: event.data,
-            type: event.data?.type
-        });
+        console.log('========================================');
+        console.log('📬 iframe 收到 postMessage');
+        console.log('Origin:', event.origin);
+        console.log('Data:', event.data);
+        console.log('Data type:', typeof event.data);
+        if (event.data && typeof event.data === 'object') {
+            console.log('❗ Message TYPE:', event.data.type);
+        }
+        console.log('========================================');
         
         // 安全检查：确保消息来自 localhost
         if (!event.origin.includes('localhost')) {
@@ -89,16 +93,21 @@ export default appTarget => {
         }
         
         if (event.data && event.data.type === 'USER_INFO_UPDATE') {
-            console.log('📨 收到父窗口的用户信息更新:', event.data.data);
+            console.log('========================================');
+            console.log('📨 iframe 收到 USER_INFO_UPDATE');
+            console.log('========================================');
+            console.log('收到的数据:', event.data.data);
             
             // 更新本地用户信息
-            window.__scratchUserInfo = {
+            const newUserInfo = {
                 isLoggedIn: event.data.data.isLoggedIn || false,
                 username: event.data.data.username || null,
                 avatarUrl: event.data.data.avatarUrl || null
             };
             
-            console.log('✅ 已更新 window.__scratchUserInfo:', window.__scratchUserInfo);
+            console.log('旧的 window.__scratchUserInfo:', window.__scratchUserInfo);
+            window.__scratchUserInfo = newUserInfo;
+            console.log('新的 window.__scratchUserInfo:', window.__scratchUserInfo);
             
             // 向父窗口发送确认消息
             try {
@@ -119,11 +128,20 @@ export default appTarget => {
             
             // 触发重新渲染
             if (renderAppFunction) {
-                console.log('🔄 触发重新渲染...');
-                renderAppFunction();
+                console.log('🔄 开始重新渲染...');
+                console.log('renderAppFunction 类型:', typeof renderAppFunction);
+                
+                try {
+                    renderAppFunction();
+                    console.log('✅ 重新渲染完成');
+                } catch (e) {
+                    console.error('❌ 重新渲染失败:', e);
+                }
             } else {
-                console.warn('⚠️ renderAppFunction 尚未初始化');
+                console.warn('⚠️ renderAppFunction 尚未初始化，无法重新渲染');
             }
+            
+            console.log('========================================');
         }
         
         // 处理加载项目请求
@@ -187,6 +205,42 @@ export default appTarget => {
             }
         }
         
+        // 处理获取缩略图请求（现在是异步的）
+        if (event.data && event.data.type === 'GET_THUMBNAIL') {
+            console.log('📸 收到父窗口的获取缩略图请求');
+            
+            if (window.scratchGetThumbnail) {
+                // scratchGetThumbnail 现在返回 Promise
+                window.scratchGetThumbnail().then(thumbnail => {
+                    if (thumbnail) {
+                        console.log('✅ 缩略图生成成功，发送响应');
+                        window.parent.postMessage({
+                            type: 'THUMBNAIL_RESPONSE',
+                            data: thumbnail
+                        }, '*');
+                    } else {
+                        console.error('❌ 缩略图生成失败');
+                        window.parent.postMessage({
+                            type: 'THUMBNAIL_RESPONSE',
+                            data: null
+                        }, '*');
+                    }
+                }).catch(error => {
+                    console.error('❌ 缩略图生成异常:', error);
+                    window.parent.postMessage({
+                        type: 'THUMBNAIL_RESPONSE',
+                        data: null
+                    }, '*');
+                });
+            } else {
+                console.error('❌ scratchGetThumbnail 函数不存在');
+                window.parent.postMessage({
+                    type: 'THUMBNAIL_RESPONSE',
+                    data: null
+                }, '*');
+            }
+        }
+        
         // 处理状态检查请求（用于诊断）
         if (event.data && event.data.type === 'CHECK_STATUS') {
             console.log('🔍 收到状态检查请求');
@@ -204,6 +258,18 @@ export default appTarget => {
     });
     
     console.log('✅ postMessage 监听器已设置');
+    
+    // 立即通知父窗口：iframe 已准备好接收消息
+    if (window.parent && window.parent !== window) {
+        console.log('📨 通知父窗口：iframe 监听器已准备好');
+        window.parent.postMessage({
+            type: 'IFRAME_READY',
+            data: {
+                timestamp: new Date().toISOString()
+            }
+        }, '*');
+        console.log('✅ IFRAME_READY 消息已发送');
+    }
 
     // 全局变量：存储 VM 实例的引用
     window.__scratchVM = null;
@@ -369,6 +435,43 @@ export default appTarget => {
                             }
                             console.warn('⚠️ VM 实例不可用');
                             return Promise.reject('VM not available');
+                        };
+                        
+                        // 获取舞台截图的全局函数（iframe 内部）
+                        // 使用 requestSnapshot 获取真实大小的截图，而不是 extractDataURI
+                        window.scratchGetThumbnail = () => {
+                            return new Promise((resolve) => {
+                                if (vm && vm.runtime && vm.runtime.renderer) {
+                                    console.log('📸 生成舞台截图（使用 requestSnapshot）...');
+                                    try {
+                                        // 设置透明预览模式
+                                        vm.postIOData('video', {forceTransparentPreview: true});
+                                        
+                                        // 请求截图
+                                        vm.renderer.requestSnapshot(dataURI => {
+                                            // 恢复正常模式
+                                            vm.postIOData('video', {forceTransparentPreview: false});
+                                            
+                                            if (dataURI && dataURI.length > 100) {
+                                                console.log('✅ 截图生成成功，大小:', dataURI.length, '字节');
+                                                resolve(dataURI);
+                                            } else {
+                                                console.warn('⚠️ 截图太小或为空');
+                                                resolve(null);
+                                            }
+                                        });
+                                        
+                                        // 触发绘制
+                                        vm.renderer.draw();
+                                    } catch (error) {
+                                        console.error('❌ 截图生成失败:', error);
+                                        resolve(null);
+                                    }
+                                } else {
+                                    console.warn('⚠️ VM 或 Renderer 不可用');
+                                    resolve(null);
+                                }
+                            });
                         };
                         
                         console.log('✅ 导出/加载函数已设置');
