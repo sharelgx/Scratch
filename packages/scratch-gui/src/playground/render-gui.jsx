@@ -418,9 +418,38 @@ export default appTarget => {
                         // 导出项目数据的全局函数（iframe 内部）
                         window.scratchExportProjectData = () => {
                             if (vm) {
-                                console.log('📤 导出项目数据...');
+                                console.log('=' .repeat(60));
+                                console.log('📤 开始导出项目数据');
+                                console.log('=' .repeat(60));
+                                
+                                // 导出前先检查 VM 状态
+                                console.log('📊 导出前 VM 状态:');
+                                if (vm.runtime && vm.runtime.targets) {
+                                    const totalBlocks = vm.runtime.targets.reduce((sum, target) => 
+                                        sum + Object.keys(target.blocks._blocks || {}).length, 0);
+                                    console.log('   - VM 中积木数量:', totalBlocks);
+                                    console.log('   - targets 数量:', vm.runtime.targets.length);
+                                    
+                                    if (totalBlocks === 0) {
+                                        console.warn('⚠️ 警告：VM 中没有积木！可能未加载项目或项目为空');
+                                    }
+                                }
+                                
                                 const data = vm.toJSON();
-                                console.log('✅ 数据导出成功，大小:', JSON.stringify(data).length, '字节');
+                                console.log('✅ vm.toJSON() 执行完成');
+                                console.log('📦 导出数据大小:', JSON.stringify(data).length, '字节');
+                                
+                                if (data && data.targets) {
+                                    const exportedBlocks = data.targets.reduce((sum, target) => 
+                                        sum + Object.keys(target.blocks || {}).length, 0);
+                                    console.log('📊 导出数据中积木数量:', exportedBlocks);
+                                    
+                                    if (exportedBlocks === 0) {
+                                        console.error('❌ 严重错误：导出的数据中没有积木！');
+                                    }
+                                }
+                                
+                                console.log('=' .repeat(60));
                                 return data;
                             }
                             console.warn('⚠️ VM 实例不可用');
@@ -430,8 +459,47 @@ export default appTarget => {
                         // 加载项目数据的全局函数（iframe 内部）
                         window.scratchLoadProjectData = (projectData) => {
                             if (vm) {
-                                console.log('📥 加载项目数据...', projectData);
-                                return vm.loadProject(projectData);
+                                console.log('=' .repeat(60));
+                                console.log('📥 开始加载项目数据到 VM');
+                                console.log('=' .repeat(60));
+                                console.log('📦 projectData 类型:', typeof projectData);
+                                console.log('📦 projectData keys:', projectData ? Object.keys(projectData) : 'null');
+                                
+                                if (projectData && projectData.targets) {
+                                    console.log('📊 targets 数量:', projectData.targets.length);
+                                    const totalBlocks = projectData.targets.reduce((sum, target) => 
+                                        sum + Object.keys(target.blocks || {}).length, 0);
+                                    console.log('📊 总积木数量:', totalBlocks);
+                                } else {
+                                    console.warn('⚠️ projectData 没有 targets！');
+                                }
+                                
+                                // 加载前先检查当前 VM 状态
+                                console.log('📊 加载前 VM 状态:');
+                                if (vm.runtime && vm.runtime.targets) {
+                                    const beforeBlocks = vm.runtime.targets.reduce((sum, target) => 
+                                        sum + Object.keys(target.blocks._blocks || {}).length, 0);
+                                    console.log('   - 当前积木数量:', beforeBlocks);
+                                }
+                                
+                                return vm.loadProject(projectData).then(() => {
+                                    console.log('✅ vm.loadProject 执行完成');
+                                    
+                                    // 加载后检查 VM 状态
+                                    console.log('📊 加载后 VM 状态:');
+                                    if (vm.runtime && vm.runtime.targets) {
+                                        const afterBlocks = vm.runtime.targets.reduce((sum, target) => 
+                                            sum + Object.keys(target.blocks._blocks || {}).length, 0);
+                                        console.log('   - 当前积木数量:', afterBlocks);
+                                        
+                                        if (afterBlocks === 0) {
+                                            console.error('❌ 严重错误：加载后 VM 中的积木数量为 0！');
+                                        } else {
+                                            console.log('✅ 项目加载成功，VM 中有积木');
+                                        }
+                                    }
+                                    console.log('=' .repeat(60));
+                                });
                             }
                             console.warn('⚠️ VM 实例不可用');
                             return Promise.reject('VM not available');
