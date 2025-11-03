@@ -186,6 +186,21 @@ export default appTarget => {
                 console.error('❌ scratchExportProjectData 函数不存在');
             }
         }
+        
+        // 处理状态检查请求（用于诊断）
+        if (event.data && event.data.type === 'CHECK_STATUS') {
+            console.log('🔍 收到状态检查请求');
+            
+            window.parent.postMessage({
+                type: 'STATUS_RESPONSE',
+                data: {
+                    vmReady: !!window.__scratchVM,
+                    exportFn: typeof window.scratchExportProjectData === 'function',
+                    loadFn: typeof window.scratchLoadProjectData === 'function',
+                    userLoggedIn: !!(window.__scratchUserInfo && window.__scratchUserInfo.isLoggedIn)
+                }
+            }, '*');
+        }
     });
     
     console.log('✅ postMessage 监听器已设置');
