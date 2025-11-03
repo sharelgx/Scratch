@@ -324,9 +324,13 @@ export default appTarget => {
                     
                     // VM 实例回调（用于导出项目数据）
                     onVmInit={(vm) => {
+                        console.log('========================================');
+                        console.log('🎉 onVmInit 回调被触发！');
+                        console.log('========================================');
                         console.log('✅ VM 实例已初始化');
                         console.log('🔍 VM 类型:', typeof vm);
                         console.log('🔍 VM.toJSON 存在:', typeof vm.toJSON === 'function');
+                        console.log('🔍 window.parent 存在:', window.parent && window.parent !== window);
                         
                         window.__scratchVM = vm;
                         
@@ -353,21 +357,43 @@ export default appTarget => {
                         };
                         
                         console.log('✅ 导出/加载函数已设置');
+                        console.log('🔍 scratchExportProjectData 类型:', typeof window.scratchExportProjectData);
+                        console.log('🔍 scratchLoadProjectData 类型:', typeof window.scratchLoadProjectData);
                         
                         // 向父窗口通知 VM 已初始化
-                        try {
-                            if (window.parent && window.parent !== window) {
-                                window.parent.postMessage({
-                                    type: 'SCRATCH_VM_READY',
-                                    data: {
-                                        timestamp: new Date().toISOString()
-                                    }
-                                }, '*');
-                                console.log('📨 已通知父窗口 VM 已初始化');
+                        const notifyParent = () => {
+                            try {
+                                console.log('📨 准备通知父窗口 VM 已初始化...');
+                                
+                                if (window.parent && window.parent !== window) {
+                                    const message = {
+                                        type: 'SCRATCH_VM_READY',
+                                        data: {
+                                            timestamp: new Date().toISOString()
+                                        }
+                                    };
+                                    
+                                    console.log('📨 发送消息:', message);
+                                    window.parent.postMessage(message, '*');
+                                    console.log('✅ 消息已发送到父窗口');
+                                } else {
+                                    console.log('⚠️ 没有父窗口（独立运行）');
+                                }
+                            } catch (e) {
+                                console.error('❌ 发送消息失败:', e);
                             }
-                        } catch (e) {
-                            console.warn('⚠️ 无法通知父窗口:', e);
-                        }
+                        };
+                        
+                        // 立即通知
+                        notifyParent();
+                        
+                        // 延迟 500ms 再通知一次（确保父窗口监听器已设置）
+                        setTimeout(() => {
+                            console.log('🔁 延迟 500ms 再次通知父窗口...');
+                            notifyParent();
+                        }, 500);
+                        
+                        console.log('========================================');
                     }}
                 />
         );
