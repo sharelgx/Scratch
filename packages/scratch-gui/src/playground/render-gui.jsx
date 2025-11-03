@@ -192,6 +192,17 @@ export default appTarget => {
 
     // 全局变量：存储 VM 实例的引用
     window.__scratchVM = null;
+    
+    // 预先声明导出函数（防止竞态条件）
+    window.scratchExportProjectData = () => {
+        console.warn('⚠️ scratchExportProjectData 被调用，但 VM 尚未初始化');
+        return null;
+    };
+    
+    window.scratchLoadProjectData = () => {
+        console.warn('⚠️ scratchLoadProjectData 被调用，但 VM 尚未初始化');
+        return Promise.reject('VM not initialized');
+    };
 
     // 从本地存储获取用户信息
     const getUserInfo = () => {
@@ -314,27 +325,49 @@ export default appTarget => {
                     // VM 实例回调（用于导出项目数据）
                     onVmInit={(vm) => {
                         console.log('✅ VM 实例已初始化');
+                        console.log('🔍 VM 类型:', typeof vm);
+                        console.log('🔍 VM.toJSON 存在:', typeof vm.toJSON === 'function');
+                        
                         window.__scratchVM = vm;
                         
-                        // 导出项目数据的全局函数
+                        // 导出项目数据的全局函数（iframe 内部）
                         window.scratchExportProjectData = () => {
                             if (vm) {
                                 console.log('📤 导出项目数据...');
-                                return vm.toJSON();
+                                const data = vm.toJSON();
+                                console.log('✅ 数据导出成功，大小:', JSON.stringify(data).length, '字节');
+                                return data;
                             }
                             console.warn('⚠️ VM 实例不可用');
                             return null;
                         };
                         
-                        // 加载项目数据的全局函数
+                        // 加载项目数据的全局函数（iframe 内部）
                         window.scratchLoadProjectData = (projectData) => {
                             if (vm) {
-                                console.log('📥 加载项目数据...');
+                                console.log('📥 加载项目数据...', projectData);
                                 return vm.loadProject(projectData);
                             }
                             console.warn('⚠️ VM 实例不可用');
                             return Promise.reject('VM not available');
                         };
+                        
+                        console.log('✅ 导出/加载函数已设置');
+                        
+                        // 向父窗口通知 VM 已初始化
+                        try {
+                            if (window.parent && window.parent !== window) {
+                                window.parent.postMessage({
+                                    type: 'SCRATCH_VM_READY',
+                                    data: {
+                                        timestamp: new Date().toISOString()
+                                    }
+                                }, '*');
+                                console.log('📨 已通知父窗口 VM 已初始化');
+                            }
+                        } catch (e) {
+                            console.warn('⚠️ 无法通知父窗口:', e);
+                        }
                     }}
                 />
         );
