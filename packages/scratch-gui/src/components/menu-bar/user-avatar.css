@@ -4,7 +4,8 @@
 .user-thumbnail {
     width: $menu-bar-button-size;
     height: $menu-bar-button-size;
-    border-radius: $form-radius;
+    border-radius: 50%; /* 圆形头像 */
     vertical-align: middle;
     box-shadow: 0 0 0 1px $ui-black-transparent;
+    object-fit: cover; /* 保证图片不变形 */
 }

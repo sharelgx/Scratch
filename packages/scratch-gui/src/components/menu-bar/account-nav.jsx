@@ -78,7 +78,7 @@ const AccountNavComponent = ({
             {myStuffUrl ? (
                 <MenuItemContainer href={myStuffUrl}>
                     <FormattedMessage
-                        defaultMessage="My Stuff"
+                        defaultMessage="我的作品"
                         description="Text to link to list of my projects, in the account navigation menu"
                         id="gui.accountMenu.myStuff"
                     />

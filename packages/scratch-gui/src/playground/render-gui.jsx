@@ -64,25 +64,226 @@ export default appTarget => {
 
     const root = ReactDomClient.createRoot(appTarget);
 
-    root.render(
-        // important: this is checking whether `simulateScratchDesktop` is truthy, not just defined!
-        simulateScratchDesktop ?
-            <WrappedGui
-                canEditTitle
-                platform={PLATFORM.DESKTOP}
-                showTelemetryModal
-                canSave={false}
-                onTelemetryModalCancel={handleTelemetryModalCancel}
-                onTelemetryModalOptIn={handleTelemetryModalOptIn}
-                onTelemetryModalOptOut={handleTelemetryModalOptOut}
-            /> :
-            <WrappedGui
-                canEditTitle
-                backpackVisible
-                showComingSoon
-                backpackHost={backpackHost}
-                canSave={false}
-                onClickLogo={onClickLogo}
-            />
-    );
+    // 存储用户信息（由 postMessage 更新）
+    window.__scratchUserInfo = {
+        isLoggedIn: false,
+        username: null,
+        avatarUrl: null
+    };
+
+    // 定义 renderApp 函数的引用（稍后定义）
+    let renderAppFunction = null;
+
+    // 监听来自父窗口的消息
+    window.addEventListener('message', (event) => {
+        console.log('📬 iframe 收到任何 postMessage:', {
+            origin: event.origin,
+            data: event.data,
+            type: event.data?.type
+        });
+        
+        // 安全检查：确保消息来自 localhost
+        if (!event.origin.includes('localhost')) {
+            console.warn('⚠️ 忽略非 localhost 来源的消息:', event.origin);
+            return;
+        }
+        
+        if (event.data && event.data.type === 'USER_INFO_UPDATE') {
+            console.log('📨 收到父窗口的用户信息更新:', event.data.data);
+            
+            // 更新本地用户信息
+            window.__scratchUserInfo = {
+                isLoggedIn: event.data.data.isLoggedIn || false,
+                username: event.data.data.username || null,
+                avatarUrl: event.data.data.avatarUrl || null
+            };
+            
+            console.log('✅ 已更新 window.__scratchUserInfo:', window.__scratchUserInfo);
+            
+            // 向父窗口发送确认消息
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'USER_INFO_UPDATE_ACK',
+                        data: {
+                            success: true,
+                            userInfo: window.__scratchUserInfo,
+                            timestamp: new Date().toISOString()
+                        }
+                    }, '*');
+                    console.log('✅ 已向父窗口发送确认消息');
+                }
+            } catch (e) {
+                console.error('❌ 发送确认消息失败:', e);
+            }
+            
+            // 触发重新渲染
+            if (renderAppFunction) {
+                console.log('🔄 触发重新渲染...');
+                renderAppFunction();
+            } else {
+                console.warn('⚠️ renderAppFunction 尚未初始化');
+            }
+        }
+    });
+    
+    console.log('✅ postMessage 监听器已设置');
+
+    // 从本地存储获取用户信息
+    const getUserInfo = () => {
+        const userInfo = window.__scratchUserInfo;
+        console.log('🔍 getUserInfo() 被调用，window.__scratchUserInfo =', userInfo);
+        
+        // 如果用户信息存在且已登录，返回用户信息
+        if (userInfo && userInfo.isLoggedIn && userInfo.username) {
+            console.log('✅ 返回已登录用户信息:', {
+                isLoggedIn: userInfo.isLoggedIn,
+                username: userInfo.username,
+                avatarUrl: userInfo.avatarUrl || null
+            });
+            return {
+                isLoggedIn: userInfo.isLoggedIn,
+                username: userInfo.username,
+                avatarUrl: userInfo.avatarUrl || null
+            };
+        }
+        
+        // 否则返回未登录状态
+        console.log('❌ 返回未登录状态');
+        return {
+            isLoggedIn: false,
+            username: null,
+            avatarUrl: null
+        };
+    };
+
+    // 登录注册处理器
+    const handleOpenRegistration = () => {
+        if (window.scratchRegisterHandler) {
+            window.scratchRegisterHandler();
+        } else {
+            window.location.href = '/register';
+        }
+    };
+
+    const handleLogOut = () => {
+        console.log('🚪 iframe: 用户点击退出登录');
+        
+        // 尝试调用父窗口的处理器
+        try {
+            if (window.parent && window.parent !== window && window.parent.scratchLogoutHandler) {
+                console.log('✅ iframe: 调用父窗口的 scratchLogoutHandler');
+                window.parent.scratchLogoutHandler();
+                return;
+            }
+        } catch (e) {
+            console.warn('⚠️ iframe: 无法访问父窗口的 scratchLogoutHandler (跨域限制):', e.message);
+        }
+        
+        // 如果无法访问父窗口，尝试通过 postMessage 通知父窗口
+        if (window.parent && window.parent !== window) {
+            console.log('📨 iframe: 通过 postMessage 请求退出登录');
+            window.parent.postMessage({
+                type: 'SCRATCH_LOGOUT_REQUEST'
+            }, '*');
+        } else {
+            console.error('❌ iframe: 无法退出登录');
+            alert('登出功能未配置');
+        }
+    };
+
+    // 自定义登录渲染（如果需要）
+    const renderLogin = ({onClose}) => {
+        if (window.scratchLoginHandler) {
+            window.scratchLoginHandler();
+            onClose();
+        }
+        return null;
+    };
+
+    // 渲染函数
+    const renderApp = () => {
+        const userInfo = getUserInfo();
+        console.log('🎨 渲染 Scratch 编辑器，用户信息:', userInfo);
+        console.log('📌 传递给 WrappedGui 的 username:', userInfo.username);
+        console.log('📌 传递给 WrappedGui 的 isLoggedIn:', userInfo.isLoggedIn);
+        
+        root.render(
+            // important: this is checking whether `simulateScratchDesktop` is truthy, not just defined!
+            simulateScratchDesktop ?
+                <WrappedGui
+                    canEditTitle
+                    platform={PLATFORM.DESKTOP}
+                    showTelemetryModal
+                    canSave={false}
+                    onTelemetryModalCancel={handleTelemetryModalCancel}
+                    onTelemetryModalOptIn={handleTelemetryModalOptIn}
+                    onTelemetryModalOptOut={handleTelemetryModalOptOut}
+                /> :
+                <WrappedGui
+                    canEditTitle
+                    backpackVisible
+                    showComingSoon
+                    backpackHost={backpackHost}
+                    canSave={false}
+                    onClickLogo={onClickLogo}
+                    
+                    // 登录相关配置
+                    username={userInfo.username}
+                    accountMenuOptions={{
+                        canHaveSession: true,
+                        canRegister: true,
+                        canLogin: true,
+                        canLogout: userInfo.isLoggedIn,
+                        // 使用 MetaSeekOJ 的真实头像
+                        avatarUrl: userInfo.avatarUrl || undefined,
+                        // "我的作品" 链接
+                        myStuffUrl: 'http://localhost:8081/classroom/scratch/projects',
+                        // 移除个人资料和账号设置
+                        profileUrl: null,
+                        accountSettingsUrl: null
+                    }}
+                    onOpenRegistration={handleOpenRegistration}
+                    onLogOut={handleLogOut}
+                    renderLogin={renderLogin}
+                />
+        );
+    };
+
+    // 保存 renderApp 函数的引用（供 postMessage 回调使用）
+    renderAppFunction = renderApp;
+    
+    // 初始渲染
+    renderApp();
+
+    // 监听用户信息变化（每秒检查一次）
+    setInterval(() => {
+        const currentUserInfo = getUserInfo();
+        
+        // 初始化 lastUserInfo
+        if (!window.__lastUserInfo) {
+            window.__lastUserInfo = {
+                isLoggedIn: false,
+                username: null
+            };
+        }
+        
+        // 只有当用户信息真正变化时才重新渲染
+        const userInfoChanged = 
+            currentUserInfo.isLoggedIn !== window.__lastUserInfo.isLoggedIn ||
+            currentUserInfo.username !== window.__lastUserInfo.username;
+        
+        if (userInfoChanged) {
+            console.log('🔄 检测到用户信息变化，重新渲染');
+            console.log('   之前:', window.__lastUserInfo);
+            console.log('   现在:', currentUserInfo);
+            
+            window.__lastUserInfo = {
+                isLoggedIn: currentUserInfo.isLoggedIn,
+                username: currentUserInfo.username
+            };
+            
+            renderApp();
+        }
+    }, 1000);
 };

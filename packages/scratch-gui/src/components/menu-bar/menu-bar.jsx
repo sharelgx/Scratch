@@ -205,26 +205,41 @@ class MenuBar extends React.Component {
         document.removeEventListener('keydown', this.handleKeyPress);
     }
     handleClickNew () {
-        // if the project is dirty, and user owns the project, we will autosave.
-        // but if they are not logged in and can't save, user should consider
-        // downloading or logging in first.
-        // Note that if user is logged in and editing someone else's project,
-        // they'll lose their work.
-        const readyToReplaceProject = this.props.confirmReadyToReplaceProject(
-            this.props.intl.formatMessage(sharedMessages.replaceProjectWarning)
-        );
-        this.props.onRequestCloseFile();
-        if (readyToReplaceProject) {
-            this.props.onClickNew(this.props.canSave && this.props.canCreateNew);
+        // 调用外层新建处理器（如果存在）
+        if (window.scratchNewHandler) {
+            window.scratchNewHandler();
+        } else {
+            // if the project is dirty, and user owns the project, we will autosave.
+            // but if they are not logged in and can't save, user should consider
+            // downloading or logging in first.
+            // Note that if user is logged in and editing someone else's project,
+            // they'll lose their work.
+            const readyToReplaceProject = this.props.confirmReadyToReplaceProject(
+                this.props.intl.formatMessage(sharedMessages.replaceProjectWarning)
+            );
+            this.props.onRequestCloseFile();
+            if (readyToReplaceProject) {
+                this.props.onClickNew(this.props.canSave && this.props.canCreateNew);
+            }
         }
         this.props.onRequestCloseFile();
     }
     handleClickRemix () {
-        this.props.onClickRemix();
+        // 调用外层改编处理器（如果存在）
+        if (window.scratchRemixHandler) {
+            window.scratchRemixHandler();
+        } else {
+            this.props.onClickRemix();
+        }
         this.props.onRequestCloseFile();
     }
     handleClickSave () {
-        this.props.onClickSave();
+        // 调用外层保存处理器（如果存在）
+        if (window.scratchSaveHandler) {
+            window.scratchSaveHandler();
+        } else {
+            this.props.onClickSave();
+        }
         this.props.onRequestCloseFile();
     }
     handleClickSaveAsCopy () {
@@ -509,6 +524,24 @@ class MenuBar extends React.Component {
                                             )}
                                         </MenuSection>
                                     )}
+                                    <MenuSection>
+                                        <MenuItem
+                                            onClick={() => {
+                                                if (window.scratchSaveToOnlineHandler) {
+                                                    window.scratchSaveToOnlineHandler();
+                                                } else {
+                                                    alert('保存功能未就绪');
+                                                }
+                                                this.props.onRequestCloseFile();
+                                            }}
+                                        >
+                                            <FormattedMessage
+                                                defaultMessage="立即保存"
+                                                description="Menu bar item for saving project to online database"
+                                                id="gui.menuBar.saveToOnline"
+                                            />
+                                        </MenuItem>
+                                    </MenuSection>
                                     <MenuSection>
                                         <MenuItem
                                             onClick={this.props.onStartSelectingFileUpload}

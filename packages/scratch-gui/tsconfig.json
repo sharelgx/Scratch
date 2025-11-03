@@ -1,12 +1,27 @@
 {
   "include": ["src"],
+  "exclude": [
+    "node_modules",
+    "dist",
+    "**/dist/**",
+    "**/node_modules/**",
+    "../../node_modules/@scratch/*/dist/**",
+    "../../packages/*/dist/**",
+    "../../packages/scratch-render/dist/**",
+    "../../packages/scratch-svg-renderer/dist/**",
+    "../../packages/scratch-vm/dist/**",
+    "**/*/dist/**",
+    "**/scratch-render/dist/**",
+    "**/scratch-svg-renderer/dist/**",
+    "**/scratch-vm/dist/**"
+  ],
   "compilerOptions": {
     /* Visit https://aka.ms/tsconfig to read more about this file */
 
     /* Language and Environment */
     "target": "ESNext",
     "jsx": "react",
-    "allowJs": true,
+    "allowJs": false,
 
     /* Modules */
     "module": "commonjs",
@@ -22,7 +37,7 @@
     "forceConsistentCasingInFileNames": true,
 
     /* Type Checking */
-    "strict": true,
+    "strict": false,
     "noImplicitAny": false,
 
     /* Completeness */

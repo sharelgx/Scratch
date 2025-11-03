@@ -51,6 +51,14 @@ const baseConfig = new ScratchWebpackConfigBuilder(
                 Buffer: require.resolve('buffer/'),
                 stream: require.resolve('stream-browserify')
             }
+        },
+        module: {
+            rules: [],
+            noParse: [
+                /scratch-render\/dist\//,
+                /scratch-svg-renderer\/dist\//,
+                /scratch-vm\/dist\//
+            ]
         }
     })
     .addModuleRule({
