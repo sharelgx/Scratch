@@ -192,10 +192,28 @@ export default appTarget => {
                 const projectData = window.scratchExportProjectData();
                 
                 if (projectData) {
-                    console.log('✅ 导出成功，发送响应');
+                    console.log('✅ 导出成功，准备发送响应');
+                    console.log('📦 projectData 类型:', typeof projectData);
+                    console.log('📦 projectData 是否为对象:', typeof projectData === 'object');
+                    console.log('📦 projectData.targets 存在:', !!projectData?.targets);
+                    
+                    // 🔧 关键修复：确保发送的是对象而不是字符串
+                    let dataToSend = projectData;
+                    if (typeof projectData === 'string') {
+                        console.warn('⚠️ projectData 是字符串，尝试解析...');
+                        try {
+                            dataToSend = JSON.parse(projectData);
+                            console.log('✅ 成功解析为对象');
+                        } catch (e) {
+                            console.error('❌ 解析失败，发送原始字符串', e);
+                        }
+                    }
+                    
+                    console.log('📨 发送响应，data 类型:', typeof dataToSend);
+                    
                     window.parent.postMessage({
                         type: 'EXPORT_PROJECT_RESPONSE',
-                        data: projectData
+                        data: dataToSend
                     }, '*');
                 } else {
                     console.error('❌ 导出失败');
