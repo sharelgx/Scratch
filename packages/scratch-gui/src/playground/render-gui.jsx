@@ -727,37 +727,32 @@ export default appTarget => {
     // 保存 renderApp 函数的引用（供 postMessage 回调使用）
     renderAppFunction = renderApp;
     
-    // 初始渲染
-    renderApp();
+    // 🔧 【优化】简化渲染逻辑
+    // 检查是否在 iframe 中
+    const isInIframe = window.parent && window.parent !== window;
+    
+    if (isInIframe) {
+        // 🔧 【优化】父窗口现在会在用户信息准备好后才渲染 iframe
+        // 所以这里可以简化，只需要等待 window.__scratchUserInfo 存在即可
+        const waitForUserInfo = () => {
+            if (window.__scratchUserInfo) {
+                console.log('✅ 用户信息已就绪，开始渲染:', window.__scratchUserInfo);
+                renderApp();
+            } else {
+                // 理论上不应该走到这里，但保留容错处理
+                console.log('⏳ 等待用户信息...');
+                setTimeout(waitForUserInfo, 50);
+            }
+        };
+        
+        // 立即检查或短暂延迟
+        setTimeout(waitForUserInfo, 0);
+    } else {
+        // 不在 iframe 中，直接渲染
+        console.log('📍 独立运行模式，直接渲染');
+        renderApp();
+    }
 
-    // 监听用户信息变化（每秒检查一次）
-    setInterval(() => {
-        const currentUserInfo = getUserInfo();
-        
-        // 初始化 lastUserInfo
-        if (!window.__lastUserInfo) {
-            window.__lastUserInfo = {
-                isLoggedIn: false,
-                username: null
-            };
-        }
-        
-        // 只有当用户信息真正变化时才重新渲染
-        const userInfoChanged = 
-            currentUserInfo.isLoggedIn !== window.__lastUserInfo.isLoggedIn ||
-            currentUserInfo.username !== window.__lastUserInfo.username;
-        
-        if (userInfoChanged) {
-            console.log('🔄 检测到用户信息变化，重新渲染');
-            console.log('   之前:', window.__lastUserInfo);
-            console.log('   现在:', currentUserInfo);
-            
-            window.__lastUserInfo = {
-                isLoggedIn: currentUserInfo.isLoggedIn,
-                username: currentUserInfo.username
-            };
-            
-            renderApp();
-        }
-    }, 1000);
+    // USER_INFO_UPDATE 消息处理器会调用 renderApp() 进行动态更新（登录/登出）
+    console.log('✅ 初始化完成，等待 USER_INFO_UPDATE 消息触发重新渲染');
 };

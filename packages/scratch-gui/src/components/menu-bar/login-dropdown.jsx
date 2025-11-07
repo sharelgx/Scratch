@@ -113,20 +113,16 @@ class LoginDropdown extends React.Component {
                 if (window.parent && window.parent !== window) {
                     console.log('📨 通知父窗口更新用户信息...');
                     
-                    // 方式1：调用父窗口的刷新函数（如果存在）
-                    if (window.parent.refreshUserInfo && typeof window.parent.refreshUserInfo === 'function') {
-                        window.parent.refreshUserInfo();
-                    } else {
-                        // 方式2：发送 postMessage
-                        window.parent.postMessage({
-                            type: 'SCRATCH_LOGIN_SUCCESS'
-                        }, '*');
-                        
-                        // 方式3：等待 2 秒后刷新父窗口（确保 Cookie 已保存）
-                        setTimeout(() => {
-                            window.parent.location.reload();
-                        }, 1000);
-                    }
+                    // 发送 postMessage 通知父窗口
+                    console.log('[LoginDropdown] 发送 SCRATCH_LOGIN_SUCCESS 消息到父窗口');
+                    window.parent.postMessage({
+                        type: 'SCRATCH_LOGIN_SUCCESS',
+                        data: {
+                            timestamp: new Date().toISOString()
+                        }
+                    }, '*');
+                    
+                    // 不再刷新整个页面，由父窗口处理状态更新
                 } else {
                     // 否则刷新当前页面
                     window.location.reload();
