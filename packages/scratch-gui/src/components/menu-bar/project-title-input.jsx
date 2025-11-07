@@ -1,7 +1,7 @@
 import classNames from 'classnames';
 import {connect} from 'react-redux';
 import PropTypes from 'prop-types';
-import React from 'react';
+import React, {useEffect} from 'react';
 import {defineMessages, useIntl} from 'react-intl';
 import {setProjectTitle} from '../../reducers/project-title';
 
@@ -25,6 +25,31 @@ const ProjectTitleInput = ({
     projectTitle
 }) => {
     const intl = useIntl();
+
+    useEffect(() => {
+        const trimmedTitle = (projectTitle || '').trim();
+
+        try {
+            window.__scratchCurrentProjectTitle = trimmedTitle;
+        } catch (e) {
+            // ignore assignment errors
+        }
+
+        try {
+            if (window.parent && window.parent !== window) {
+                window.parent.postMessage({
+                    type: 'SCRATCH_PROJECT_TITLE_UPDATE',
+                    data: {
+                        title: trimmedTitle,
+                        timestamp: new Date().toISOString()
+                    }
+                }, '*');
+            }
+        } catch (error) {
+            console.warn('⚠️ 无法发送项目标题更新到父窗口:', error);
+        }
+    }, [projectTitle]);
+
     return (
         <BufferedInput
             className={classNames(styles.titleField, className)}

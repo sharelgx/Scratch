@@ -70,6 +70,7 @@ export default appTarget => {
         username: null,
         avatarUrl: null
     };
+    window.__scratchCurrentProjectTitle = '';
     
 
     // 定义 renderApp 函数的引用（稍后定义）
@@ -138,6 +139,35 @@ export default appTarget => {
             }
             
             console.log('========================================');
+        }
+
+        if (event.data && event.data.type === 'REQUEST_PROJECT_TITLE') {
+            const safeGetTitle = () => {
+                try {
+                    if (typeof window.scratchGetProjectTitle === 'function') {
+                        return window.scratchGetProjectTitle();
+                    }
+                } catch (e) {
+                    console.warn('⚠️ 无法通过 scratchGetProjectTitle 获取标题:', e);
+                }
+                return window.__scratchCurrentProjectTitle || '';
+            };
+
+            const currentTitle = (safeGetTitle() || '').trim();
+
+            try {
+                if (window.parent && window.parent !== window) {
+                    window.parent.postMessage({
+                        type: 'PROJECT_TITLE_RESPONSE',
+                        data: {
+                            title: currentTitle,
+                            timestamp: new Date().toISOString()
+                        }
+                    }, '*');
+                }
+            } catch (error) {
+                console.error('❌ 发送项目标题响应失败:', error);
+            }
         }
         
         // 处理加载项目请求
@@ -308,6 +338,11 @@ export default appTarget => {
         console.warn('⚠️ scratchLoadProjectData 被调用，但 VM 尚未初始化');
         return Promise.reject('VM not initialized');
     };
+    
+    window.scratchGetProjectTitle = () => {
+        console.warn('⚠️ scratchGetProjectTitle 被调用，但 VM 尚未初始化');
+        return '';
+    };
 
     // 从本地存储获取用户信息
     const getUserInfo = () => {
@@ -383,6 +418,16 @@ export default appTarget => {
 
     // 渲染函数
     const renderApp = () => {
+        // 🚀 移除全局预加载动画（参考 8080 的 App.vue）
+        try {
+            const loader = document.getElementById('app-loader');
+            if (loader && loader.parentNode) {
+                loader.parentNode.removeChild(loader);
+            }
+        } catch (e) {
+            // 忽略错误
+        }
+        
         const userInfo = getUserInfo();
         console.log('🎨 渲染 Scratch 编辑器，用户信息:', userInfo);
         console.log('📌 传递给 WrappedGui 的 username:', userInfo.username);
@@ -646,9 +691,36 @@ export default appTarget => {
                             });
                         };
                         
-                        console.log('✅ 导出/加载函数已设置');
+                        // 🔧 【新增】获取项目标题的全局函数
+                        window.scratchGetProjectTitle = () => {
+                            let detectedTitle = '';
+                            try {
+                                // 直接读取输入框的当前值（包含暂存内容）
+                                const input = document.querySelector('input[class*="project-title-input_title-field"]');
+                                if (input && typeof input.value === 'string' && input.value.trim()) {
+                                    detectedTitle = input.value.trim();
+                                }
+                            } catch (e) {
+                                console.warn('⚠️ 获取项目标题时无法访问输入框:', e);
+                            }
+
+                            if (!detectedTitle && vm && vm.runtime && typeof vm.runtime.projectName === 'string') {
+                                detectedTitle = vm.runtime.projectName.trim();
+                            }
+
+                            try {
+                                window.__scratchCurrentProjectTitle = detectedTitle;
+                            } catch (assignError) {
+                                // 忽略赋值错误
+                            }
+
+                            return detectedTitle;
+                        };
+                        
+                        console.log('✅ 导出/加载/获取标题函数已设置');
                         console.log('🔍 scratchExportProjectData 类型:', typeof window.scratchExportProjectData);
                         console.log('🔍 scratchLoadProjectData 类型:', typeof window.scratchLoadProjectData);
+                        console.log('🔍 scratchGetProjectTitle 类型:', typeof window.scratchGetProjectTitle);
                         
                         // 向父窗口通知 VM 已初始化
                         const notifyParent = () => {
