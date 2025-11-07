@@ -50,6 +50,39 @@ const ProjectTitleInput = ({
         }
     }, [projectTitle]);
 
+    useEffect(() => {
+        const handleMessage = event => {
+            if (!event || typeof event.data !== 'object') return;
+            if (event.type !== 'message' && !event.data.type) return;
+            if (event.origin && !event.origin.includes('localhost')) return;
+
+            if (event.data.type === 'SET_PROJECT_TITLE') {
+                const incomingTitle = event.data.data && event.data.data.title;
+                if (typeof incomingTitle !== 'string') return;
+
+                const trimmedIncoming = incomingTitle.trim();
+                const currentTrimmed = (projectTitle || '').trim();
+
+                if (!trimmedIncoming || trimmedIncoming === currentTrimmed) {
+                    return;
+                }
+
+                try {
+                    window.__scratchCurrentProjectTitle = trimmedIncoming;
+                } catch (e) {
+                    // ignore assignment errors
+                }
+
+                if (typeof onSubmit === 'function') {
+                    onSubmit(trimmedIncoming);
+                }
+            }
+        };
+
+        window.addEventListener('message', handleMessage);
+        return () => window.removeEventListener('message', handleMessage);
+    }, [onSubmit, projectTitle]);
+
     return (
         <BufferedInput
             className={classNames(styles.titleField, className)}
