@@ -1,51 +1,114 @@
-# scratch-editor: The Scratch Editor Monorepo
+# Scratch Editor - 修复版
 
-If you'd like to use Scratch, please visit the [Scratch website](https://scratch.mit.edu/). You can build your own
-Scratch project by pressing "Create" on that website or by visiting <https://scratch.mit.edu/projects/editor/>.
+这是 [Scratch GUI](https://github.com/scratchfoundation/scratch-gui) 的修复版本，用于 MetaSeekOJ 在线判题系统的创意编程教室。
 
-This is a source code repository for the packages that make up the Scratch editor and a few additional support
-packages. Use this if you'd like to learn about how the Scratch editor works or to contribute to its development.
+## 主要修复
 
-## What's in this repository?
+### 🐛 修复：重复 Sprite 问题
 
-The `packages` directory in this repository contains:
+**问题：** 加载项目时出现重复的 Stage 和 Sprite（2个变成4个）
 
-- `scratch-gui` provides the buttons, menus, and other elements that you interact with when creating and editing a
-  project. It's also the "glue" that brings most of the other modules together at runtime.
-- `scratch-render` draws backdrops, sprites, and clones on the stage.
-- `scratch-svg-renderer` processes SVG (vector) images for use with Scratch projects.
-- `scratch-vm` is the virtual machine that runs Scratch projects.
+**根本原因：**
+- Webpack 热更新（HMR）导致 `vm.loadProject()` 被调用两次
+- `vm.clear()` 在某些情况下未能完全清除 targets
+- `installTargets()` 被重复调用，导致 targets 累加
 
-_Please add to this list as more packages are migrated to the monorepo._
+**解决方案：**
+1. ✅ 添加防重复加载逻辑（缓存 projectId）
+2. ✅ 在加载前强制清除 VM 中的所有 targets
+3. ✅ 在 `installTargets()` 中检测并清除已有 targets
+4. ✅ 在序列化时过滤掉空的默认 Sprite
 
-Each package has its own `README.md` file with more information about that package.
+详细文档：[DUPLICATE_SPRITE_FIX.md](./DUPLICATE_SPRITE_FIX.md)
 
-## Monorepo migration
+## 修改的文件
 
-### What's going on?
+```
+packages/
+├── scratch-gui/
+│   └── src/
+│       └── playground/
+│           └── render-gui.jsx          # 添加防重复加载逻辑
+└── scratch-vm/
+    └── src/
+        ├── virtual-machine.js          # 添加强制清除和防护
+        └── serialization/
+            └── sb3.js                  # 过滤默认 Sprite
+```
 
-We're migrating the Scratch editor packages into this monorepo. This will allow us to manage all the packages that
-make up the Scratch editor in one place, making  it easier to manage dependencies and make changes that affect
-multiple packages.
+## 快速开始
 
-### Why are there only a few packages in this repo?
+### 安装依赖
 
-We're migrating packages in stages. The current plan, which is subject to change, has us migrating repositories in
-four batches. We plan to complete the migration within 2025.
+```bash
+cd packages/scratch-gui
+npm install
 
-### What will happen to the existing repositories?
+cd ../scratch-vm
+npm install
+```
 
-The existing repositories will be archived and made read-only. Those repositories contain valuable work and
-information, including but not limited to issues and pull requests. We plan to keep that information available for
-reference, and to selectively migrate it to this new repository.
+### 开发模式
 
-## Thank you!
+```bash
+cd packages/scratch-gui
+npm start
+```
 
-Scratch would not be what it is today without help from the global community of Scratchers and open-source
-contributors. Thank you for your contributions and support. _[Scratch on!](https://scratch.mit.edu/projects/65347738/fullscreen/)_
+访问：`http://localhost:8601`
 
-## Donate
+### 生产构建
 
-We provide [Scratch](https://scratch.mit.edu) free of charge, and want to keep it that way! Please consider making a
-[donation](https://secure.donationpay.org/scratchfoundation/) to support our continued engineering, design, community,
-and resource development efforts. Donations of any size are appreciated. Thank you!
+```bash
+cd packages/scratch-gui
+BUILD_MODE=dist npm run build
+```
+
+## 集成到项目
+
+这个 Scratch 编辑器通过 iframe 嵌入到 React 应用中：
+
+```typescript
+// OnlineJudgeFE-React/src/pages/creative-classroom/scratch/Editor.tsx
+<iframe
+  ref={iframeRef}
+  src="http://localhost:8601"
+  title="Scratch Editor"
+  style={{ width: '100%', height: '100%', border: 'none' }}
+  onLoad={handleIframeLoad}
+/>
+```
+
+通过 `postMessage` 进行跨窗口通信：
+- 用户登录状态同步
+- 项目数据加载/保存
+- 截图生成
+
+## 技术栈
+
+- **Scratch GUI**: React 前端界面
+- **Scratch VM**: 核心虚拟机
+- **Scratch Blocks**: 基于 Blockly 的积木编辑器
+- **Webpack**: 模块打包和开发服务器
+
+## 版本信息
+
+- **基于版本**: scratchfoundation/scratch-gui develop 分支
+- **修复日期**: 2025-11-07
+- **修复者**: 柳老师 & Cursor AI
+
+## 相关链接
+
+- [官方 Scratch GUI](https://github.com/scratchfoundation/scratch-gui)
+- [官方 Scratch VM](https://github.com/scratchfoundation/scratch-vm)
+- [MetaSeekOJ 项目](https://github.com/sharelgx/MetaSeekOJdev)
+
+## 许可证
+
+继承自 Scratch 官方项目：
+- Scratch GUI: BSD-3-Clause
+- Scratch VM: BSD-3-Clause
+
+---
+
+**注意：** 这是一个修复版本，专门用于解决在 MetaSeekOJ 项目中遇到的特定问题。如果您也遇到了类似的重复 Sprite 问题，可以参考本仓库的修复方案。
