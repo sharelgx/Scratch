@@ -70,21 +70,17 @@ export default appTarget => {
         username: null,
         avatarUrl: null
     };
+    
 
     // 定义 renderApp 函数的引用（稍后定义）
     let renderAppFunction = null;
 
     // 监听来自父窗口的消息
     window.addEventListener('message', (event) => {
-        console.log('========================================');
-        console.log('📬 iframe 收到 postMessage');
-        console.log('Origin:', event.origin);
-        console.log('Data:', event.data);
-        console.log('Data type:', typeof event.data);
-        if (event.data && typeof event.data === 'object') {
-            console.log('❗ Message TYPE:', event.data.type);
+        // 🔧 优化：简化日志
+        if (event.data && typeof event.data === 'object' && event.data.type) {
+            console.log(`📬 iframe 收到: ${event.data.type}`)
         }
-        console.log('========================================');
         
         // 安全检查：确保消息来自 localhost
         if (!event.origin.includes('localhost')) {
@@ -210,11 +206,21 @@ export default appTarget => {
                     }
                     
                     console.log('📨 发送响应，data 类型:', typeof dataToSend);
-                    
-                    window.parent.postMessage({
+                    console.log('📨 targetOrigin: *');
+                    console.log('📨 消息内容:', {
                         type: 'EXPORT_PROJECT_RESPONSE',
-                        data: dataToSend
-                    }, '*');
+                        dataSize: JSON.stringify(dataToSend).length
+                    });
+                    
+                    try {
+                        window.parent.postMessage({
+                            type: 'EXPORT_PROJECT_RESPONSE',
+                            data: dataToSend
+                        }, '*');
+                        console.log('✅ postMessage 发送成功');
+                    } catch (error) {
+                        console.error('❌ postMessage 发送失败:', error);
+                    }
                 } else {
                     console.error('❌ 导出失败');
                 }
@@ -457,7 +463,35 @@ export default appTarget => {
                                 console.log('✅ vm.toJSON() 执行完成');
                                 console.log('📦 导出数据大小:', JSON.stringify(data).length, '字节');
                                 
+                                // 🔧 【终极修复】过滤掉默认的"角色1"（如果它没有积木或脚本）
                                 if (data && data.targets) {
+                                    const originalCount = data.targets.length;
+                                    console.log('🔍 过滤前 targets 数量:', originalCount);
+                                    
+                                    data.targets = data.targets.filter(target => {
+                                        // 保留 Stage
+                                        if (target.isStage) return true;
+                                        
+                                        // 保留有积木的角色
+                                        const hasBlocks = target.blocks && Object.keys(target.blocks).length > 0;
+                                        if (hasBlocks) {
+                                            console.log(`   - 保留角色: ${target.name}（有积木）`);
+                                            return true;
+                                        }
+                                        
+                                        // 过滤掉默认的"角色1"（没有积木）
+                                        if (target.name === '角色1' || target.name === 'Sprite1') {
+                                            console.log(`   - 过滤掉默认角色: ${target.name}（无积木）`);
+                                            return false;
+                                        }
+                                        
+                                        // 保留其他角色（即使没有积木）
+                                        console.log(`   - 保留角色: ${target.name}`);
+                                        return true;
+                                    });
+                                    
+                                    console.log('✅ 过滤后 targets 数量:', data.targets.length);
+                                    
                                     const exportedBlocks = data.targets.reduce((sum, target) => 
                                         sum + Object.keys(target.blocks || {}).length, 0);
                                     console.log('📊 导出数据中积木数量:', exportedBlocks);
@@ -477,6 +511,14 @@ export default appTarget => {
                         // 加载项目数据的全局函数（iframe 内部）
                         window.scratchLoadProjectData = (projectData) => {
                             if (vm) {
+                                // 🔧 【终极修复】防止热更新导致的重复加载
+                                const currentProjectId = projectData?.meta?.projectId || JSON.stringify(projectData);
+                                if (window.__lastLoadedProjectId === currentProjectId) {
+                                    console.warn('⚠️ 检测到重复加载（可能是热更新），跳过');
+                                    return Promise.resolve();
+                                }
+                                window.__lastLoadedProjectId = currentProjectId;
+                                
                                 console.log('=' .repeat(60));
                                 console.log('📥 开始加载项目数据到 VM');
                                 console.log('=' .repeat(60));
@@ -484,7 +526,10 @@ export default appTarget => {
                                 console.log('📦 projectData keys:', projectData ? Object.keys(projectData) : 'null');
                                 
                                 if (projectData && projectData.targets) {
-                                    console.log('📊 targets 数量:', projectData.targets.length);
+                                    console.log('📊 projectData 中的 targets 数量:', projectData.targets.length);
+                                    projectData.targets.forEach((target, index) => {
+                                        console.log(`   ${index + 1}. ${target.name} (${target.isStage ? 'Stage' : 'Sprite'})`);
+                                    });
                                     const totalBlocks = projectData.targets.reduce((sum, target) => 
                                         sum + Object.keys(target.blocks || {}).length, 0);
                                     console.log('📊 总积木数量:', totalBlocks);
@@ -492,13 +537,50 @@ export default appTarget => {
                                     console.warn('⚠️ projectData 没有 targets！');
                                 }
                                 
-                                // 加载前先检查当前 VM 状态
-                                console.log('📊 加载前 VM 状态:');
-                                if (vm.runtime && vm.runtime.targets) {
-                                    const beforeBlocks = vm.runtime.targets.reduce((sum, target) => 
-                                        sum + Object.keys(target.blocks._blocks || {}).length, 0);
-                                    console.log('   - 当前积木数量:', beforeBlocks);
+                                // 🔧 修复：清理 meta 中的非 ASCII 字符（避免 FixedAsciiString 错误）
+                                if (projectData && projectData.meta) {
+                                    console.log('🔧 清理 meta 字段中的非 ASCII 字符...');
+                                    const originalAgent = projectData.meta.agent;
+                                    
+                                    // 移除或替换非 ASCII 字符
+                                    if (projectData.meta.agent) {
+                                        projectData.meta.agent = projectData.meta.agent.replace(/[^\x00-\x7F]/g, '');
+                                    }
+                                    if (projectData.meta.vm) {
+                                        projectData.meta.vm = projectData.meta.vm.replace(/[^\x00-\x7F]/g, '');
+                                    }
+                                    
+                                    if (originalAgent !== projectData.meta.agent) {
+                                        console.log('✅ 已清理非 ASCII 字符:', {
+                                            原始: originalAgent,
+                                            清理后: projectData.meta.agent
+                                        });
+                                    }
                                 }
+                                
+                                // 🔧 标记项目开始加载（防止误删加载的角色）
+                                window.__projectLoadStarted = true;
+                                
+                                // 🔧 【终极修复】手动强制清除 VM 中的所有 targets
+                                console.log('🧹 在加载前强制清除 VM 中的所有 targets');
+                                try {
+                                    const runtime = vm.runtime;
+                                    const targetsBeforeClear = runtime.targets.length;
+                                    console.log(`   - 清除前 targets 数量: ${targetsBeforeClear}`);
+                                    
+                                    // 强制清除所有 targets（从后往前删除）
+                                    while (runtime.targets.length > 0) {
+                                        const target = runtime.targets[runtime.targets.length - 1];
+                                        runtime.disposeTarget(target);
+                                    }
+                                    
+                                    console.log(`   - 清除后 targets 数量: ${runtime.targets.length}`);
+                                    console.log('✅ VM 已完全清空');
+                                } catch (clearError) {
+                                    console.error('⚠️ 清除 targets 时出错（继续加载）:', clearError);
+                                }
+                                
+                                console.log('📥 开始加载项目');
                                 
                                 return vm.loadProject(projectData).then(() => {
                                     console.log('✅ vm.loadProject 执行完成');
@@ -506,6 +588,10 @@ export default appTarget => {
                                     // 加载后检查 VM 状态
                                     console.log('📊 加载后 VM 状态:');
                                     if (vm.runtime && vm.runtime.targets) {
+                                        console.log('   - 加载后 VM targets 数量:', vm.runtime.targets.length);
+                                        vm.runtime.targets.forEach((target, index) => {
+                                            console.log(`   ${index + 1}. ${target.getName()} (${target.isStage ? 'Stage' : 'Sprite'})`);
+                                        });
                                         const afterBlocks = vm.runtime.targets.reduce((sum, target) => 
                                             sum + Object.keys(target.blocks._blocks || {}).length, 0);
                                         console.log('   - 当前积木数量:', afterBlocks);
@@ -588,14 +674,49 @@ export default appTarget => {
                             }
                         };
                         
-                        // 立即通知
+                        // 🔧 优化：立即通知，不再延迟重发
+                        // 父窗口现在有可靠的消息监听器，不需要重复发送
                         notifyParent();
                         
-                        // 延迟 500ms 再通知一次（确保父窗口监听器已设置）
-                        setTimeout(() => {
-                            console.log('🔁 延迟 500ms 再次通知父窗口...');
-                            notifyParent();
-                        }, 500);
+                        // 🔧 关键修复：新项目时删除默认角色
+                        // 对于新项目（没有调用loadProject的情况），需要在这里清理
+                        console.log('🧹 VM 初始化后，立即清除默认角色...');
+                        
+                        // 使用全局标志防止误删已加载的角色
+                        window.__projectLoadStarted = false;
+                        
+                        const clearDefaultSpritesForNewProject = () => {
+                            // 如果已经开始加载项目，不要清理（避免误删加载的角色）
+                            if (window.__projectLoadStarted) {
+                                console.log('   - 项目已开始加载，跳过默认角色清理');
+                                return;
+                            }
+                            
+                            if (vm && vm.runtime && vm.runtime.targets) {
+                                const spritesToRemove = vm.runtime.targets.filter(target => !target.isStage);
+                                
+                                if (spritesToRemove.length > 0) {
+                                    console.log(`   - 找到 ${spritesToRemove.length} 个默认精灵，开始清理...`);
+                                    
+                                    spritesToRemove.forEach(sprite => {
+                                        console.log(`   - 移除默认精灵: ${sprite.getName()}`);
+                                        vm.deleteSprite(sprite.id);
+                                    });
+                                    
+                                    console.log('✅ 默认角色已清除（新项目）');
+                                    console.log('📊 清理后 VM targets 数量:', vm.runtime.targets.length);
+                                } else {
+                                    console.log('   - VM 中没有精灵，无需清理');
+                                }
+                            } else {
+                                console.log('   - VM 未就绪，延迟清理');
+                                // 如果VM还没初始化完，延迟一点再试
+                                setTimeout(clearDefaultSpritesForNewProject, 100);
+                            }
+                        };
+                        
+                        // 立即执行第一次清理，如果失败会自动重试
+                        setTimeout(clearDefaultSpritesForNewProject, 0);
                         
                         console.log('========================================');
                     }}

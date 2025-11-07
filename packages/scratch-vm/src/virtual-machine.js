@@ -489,7 +489,10 @@ class VirtualMachine extends EventEmitter {
      */
     deserializeProject (projectJSON, zip) {
         // Clear the current runtime
+        console.log('🔧 [VM] deserializeProject 开始');
+        console.log('🔧 [VM] 清除前 targets 数量:', this.runtime.targets.length);
         this.clear();
+        console.log('🔧 [VM] 清除后 targets 数量:', this.runtime.targets.length);
 
         if (typeof performance !== 'undefined') {
             performance.mark('scratch-vm-deserialize-start');
@@ -528,6 +531,24 @@ class VirtualMachine extends EventEmitter {
      * @returns {Promise} resolved once targets have been installed
      */
     installTargets (targets, extensions, wholeProject) {
+        console.log('🔧 [VM] installTargets 开始');
+        console.log('🔧 [VM] 安装前 VM targets 数量:', this.runtime.targets.length);
+        console.log('🔧 [VM] 要安装的 targets 数量:', targets.length);
+        targets.forEach((t, i) => {
+            console.log(`    ${i + 1}. ${t.getName()} (${t.isStage ? 'Stage' : 'Sprite'})`);
+        });
+        
+        // 🔧 【终极防护】如果 VM 中已经有 targets，强制清除
+        if (this.runtime.targets.length > 0 && wholeProject) {
+            console.warn('⚠️ [VM] 检测到 VM 中已有 targets，强制清除（防止重复）');
+            const oldTargets = this.runtime.targets.slice();
+            oldTargets.forEach(t => {
+                console.log(`    - 删除旧 target: ${t.getName()}`);
+                this.runtime.disposeTarget(t);
+            });
+            console.log('✅ [VM] 旧 targets 已清除，当前数量:', this.runtime.targets.length);
+        }
+        
         const extensionPromises = [];
 
         extensions.extensionIDs.forEach(extensionID => {
@@ -569,6 +590,12 @@ class VirtualMachine extends EventEmitter {
             this.emitWorkspaceUpdate();
             this.runtime.setEditingTarget(this.editingTarget);
             this.runtime.ioDevices.cloud.setStage(this.runtime.getTargetForStage());
+            
+            console.log('🔧 [VM] installTargets 完成');
+            console.log('🔧 [VM] 安装后 VM targets 数量:', this.runtime.targets.length);
+            this.runtime.targets.forEach((t, i) => {
+                console.log(`    ${i + 1}. ${t.getName()} (${t.isStage ? 'Stage' : 'Sprite'})`);
+            });
         });
     }
 

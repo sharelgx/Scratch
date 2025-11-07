@@ -567,7 +567,25 @@ const serialize = function (runtime, targetId) {
         return serializedTargets[0];
     }
 
-    obj.targets = serializedTargets;
+    // 🔧 【终极修复】过滤掉默认的"角色1"（如果它没有积木）
+    const filteredTargets = serializedTargets.filter(target => {
+        // 保留 Stage
+        if (target.isStage) return true;
+        
+        // 保留有积木的角色
+        const hasBlocks = target.blocks && Object.keys(target.blocks).length > 0;
+        if (hasBlocks) return true;
+        
+        // 过滤掉默认的"角色1"（没有积木）
+        if (target.name === '角色1' || target.name === 'Sprite1') {
+            return false;
+        }
+        
+        // 保留其他角色
+        return true;
+    });
+
+    obj.targets = filteredTargets;
 
     obj.monitors = serializeMonitors(runtime.getMonitorState());
 
