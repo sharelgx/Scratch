@@ -50,19 +50,13 @@ const AccountNavComponent = ({
                         type: 'SCRATCH_NAVIGATE_MY_PROJECTS',
                         targetUrl
                     }, '*');
+                    return;
                 }
             } catch (error) {
                 // ignore cross-origin access issues and fall back to direct navigation
             }
 
-            if (typeof window.top !== 'undefined') {
-                try {
-                    window.top.location.href = targetUrl;
-                } catch (error) {
-                    // fallback to current window navigation
-                    window.location.href = targetUrl;
-                }
-            } else if (targetUrl && typeof window.location !== 'undefined') {
+            if (targetUrl && typeof window.location !== 'undefined') {
                 window.location.href = targetUrl;
             }
         }
