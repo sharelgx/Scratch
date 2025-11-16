@@ -1,0 +1,314 @@
+@import "../../css/colors.css";
+@import "../../css/units.css";
+@import "../../css/z-index.css";
+
+.collapsedBadge {
+    position: absolute;
+    top: calc($menu-bar-height + 24px);
+    left: 16px;
+    padding: 0.6rem 1.75rem;
+    border: none;
+    border-radius: 999px;
+    background: linear-gradient(130deg, #ff8c00, #ff5f6d);
+    color: $ui-white;
+    font-weight: bold;
+    font-size: 0.9rem;
+    box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    z-index: $z-index-card;
+}
+
+.headerContent {
+    display: flex;
+    flex-direction: column;
+    color: $ui-white;
+    flex: 1;
+    min-width: 0;
+    padding: 0.25rem 0.75rem 0.5rem;
+}
+
+.modeAndTitle {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    margin-bottom: 0.3rem;
+}
+
+.modeTag {
+    align-self: flex-start;
+    padding: 0.1rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    background: rgba(255, 255, 255, 0.25);
+    color: $ui-white;
+    font-weight: bold;
+}
+
+.assignmentTitle {
+    font-size: 1rem;
+    font-weight: bold;
+    color: $ui-white;
+}
+
+.subTitle {
+    color: rgba(255, 255, 255, 0.85);
+    font-size: 0.85rem;
+    line-height: 1.4;
+    margin-bottom: 0.35rem;
+}
+
+.metaRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.75rem;
+    color: rgba(255, 255, 255, 0.85);
+    margin-bottom: 0.35rem;
+}
+
+.metaItem {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+}
+
+.tagList {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.35rem;
+}
+
+.tagPill {
+    padding: 0.2rem 0.6rem;
+    border-radius: 999px;
+    border: 1px solid rgba(255, 255, 255, 0.35);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+}
+
+.headerAction {
+    background: transparent;
+    border: none;
+    color: $ui-white;
+    font-size: 0.65rem;
+    font-weight: bold;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
+    padding: 0.4rem 0.85rem;
+}
+
+.headerAction img {
+    width: 1.5rem;
+    margin-bottom: 0.2rem;
+    filter: brightness(0) invert(1);
+}
+
+.collapsedHint {
+    padding: 1.5rem;
+    font-size: 0.9rem;
+    color: $text-primary;
+    text-align: center;
+    width: 100%;
+}
+
+.empty {
+    width: 100%;
+    padding: 2rem 1rem;
+    text-align: center;
+    color: $text-primary;
+    font-size: 0.9rem;
+}
+
+.stepTitle {
+    width: 100%;
+    font-size: 1.15rem;
+    font-weight: bold;
+    color: $text-primary;
+    margin-bottom: 0.75rem;
+    text-align: left;
+}
+
+.stepMedia {
+    width: 100%;
+    border: 1px solid $ui-tertiary;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+    background: $ui-white;
+}
+
+.stepMedia img {
+    width: 100%;
+    height: auto;
+    display: block;
+}
+
+.stepMediaPlaceholder {
+    width: 100%;
+    height: 140px;
+    border: 1px dashed $ui-tertiary;
+    border-radius: 0.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-primary-transparent;
+    margin-bottom: 0.75rem;
+}
+
+.stepVideo {
+    width: 100%;
+    border-radius: 0.75rem;
+    overflow: hidden;
+    margin-bottom: 0.75rem;
+    aspect-ratio: 16 / 9;
+    background: #000;
+}
+
+.stepVideo iframe {
+    width: 100%;
+    height: 100%;
+    border: none;
+}
+
+.stepDescription {
+    width: 100%;
+    max-height: 160px;
+    overflow-y: auto;
+    padding-right: 0.5rem;
+    text-align: left;
+}
+
+.stepRichContent {
+    font-size: 0.9rem;
+    line-height: 1.6;
+    color: $text-primary;
+}
+
+.stepContentPlaceholder {
+    color: $text-primary-transparent;
+    font-size: 0.85rem;
+    text-align: center;
+    padding: 1rem 0;
+}
+
+.ctaRow {
+    width: 100%;
+    display: flex;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.primaryButton,
+.secondaryButton {
+    flex: 1;
+    border-radius: 0.75rem;
+    border: none;
+    height: 44px;
+    font-size: 0.95rem;
+    font-weight: bold;
+    cursor: pointer;
+    transition: transform 0.15s ease, box-shadow 0.2s ease;
+}
+
+.primaryButton {
+    background: linear-gradient(135deg, #ff7a18, #ff3d71);
+    color: $ui-white;
+    box-shadow: 0 12px 24px rgba(255, 93, 70, 0.25);
+}
+
+.primaryButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 18px 32px rgba(255, 93, 70, 0.3);
+}
+
+.primaryButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.primaryButtonSaving {
+    background: linear-gradient(135deg, #f97316, #ea580c);
+}
+
+.primaryButtonSuccess {
+    background: linear-gradient(135deg, #22c55e, #15803d);
+}
+
+.secondaryButton {
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(15, 23, 42, 0.3);
+    color: $text-primary;
+}
+
+.secondaryButton:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 10px 16px rgba(15, 23, 42, 0.1);
+}
+
+.statusMessage {
+    width: 100%;
+    margin-top: 0.75rem;
+    font-size: 0.8rem;
+    text-align: center;
+    border-radius: 0.5rem;
+    padding: 0.65rem 0.75rem;
+}
+
+.statusSuccess {
+    background: rgba(34, 197, 94, 0.18);
+    color: #15803d;
+}
+
+.statusError {
+    background: rgba(248, 113, 113, 0.18);
+    color: #b91c1c;
+}
+
+.statusRow {
+    margin-top: 0.35rem;
+    display: flex;
+    justify-content: center;
+}
+
+.statusChip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: #0f172a;
+    background: rgba(15, 23, 42, 0.08);
+}
+
+.statusChipSaving {
+    background: rgba(249, 115, 22, 0.12);
+    color: #ea580c;
+}
+
+.statusChipSuccess {
+    background: rgba(34, 197, 94, 0.15);
+    color: #15803d;
+}
+
+.statusChipError {
+    background: rgba(248, 113, 113, 0.15);
+    color: #b91c1c;
+}
+
+.statusChipMuted {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.2rem 0.8rem;
+    border-radius: 999px;
+    font-size: 0.75rem;
+    color: #94a3b8;
+    background: rgba(15, 23, 42, 0.05);
+}
+
