@@ -159,11 +159,17 @@ const ClassroomPanel = ({
 }) => {
     const [expanded, setExpanded] = useState(true);
     const [dragPosition, setDragPosition] = useState(() => getDefaultPosition(true));
+    const [videoPlaying, setVideoPlaying] = useState(false);
     const tutorialKey = tutorial?.tutorialId ?? tutorial?.id ?? tutorial?.title ?? 'default';
 
     useEffect(() => {
         setDragPosition(getDefaultPosition(expanded));
     }, [tutorialKey, expanded]);
+
+    // 当切换步骤时，重置视频播放状态
+    useEffect(() => {
+        setVideoPlaying(false);
+    }, [activeStepIndex]);
 
     useEffect(() => {
         if (!tutorial || !visible) return;
@@ -292,13 +298,27 @@ const ClassroomPanel = ({
         }
         // 1:1像素级复刻官方引导卡：只包含标题和图片/视频
         // 官方ImageStep结构：标题 + 图片
-        // 官方VideoStep结构：视频
+        // 官方VideoStep结构：视频 + 播放按钮覆盖层
         if (videoMedia) {
-            // 如果有视频，显示视频（类似官方VideoStep）
+            // 如果有视频，显示视频（类似官方VideoStep）+ 官方播放按钮
+            const videoUrl = normalizeBilibiliSrc(videoMedia.embedUrl || videoMedia.url);
+            const handlePlayClick = (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setVideoPlaying(true);
+                // 点击播放按钮后，添加autoplay参数并重新加载iframe
+                const iframe = e.target.closest('[class*="step-video"]')?.querySelector('iframe');
+                if (iframe) {
+                    const url = new URL(iframe.src);
+                    url.searchParams.set('autoplay', '1');
+                    iframe.src = url.toString();
+                }
+            };
+            
             return (
-                <div className={cardStyles['step-video']}>
+                <div className={cardStyles['step-video']} style={{position: 'relative'}}>
                     <iframe
-                        src={normalizeBilibiliSrc(videoMedia.embedUrl || videoMedia.url)}
+                        src={videoUrl}
                         title={videoMedia.title || '课堂视频'}
                         allowFullScreen
                         sandbox="allow-scripts allow-same-origin allow-pointer-lock"
@@ -306,6 +326,61 @@ const ClassroomPanel = ({
                         allow="fullscreen"
                         style={{height: '257px', width: '466px'}}
                     />
+                    {/* 官方播放按钮覆盖层 - 仅在未播放时显示 */}
+                    {!videoPlaying && (
+                        <div
+                            onClick={handlePlayClick}
+                            style={{
+                                position: 'absolute',
+                                top: 0,
+                                left: 0,
+                                width: '100%',
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                cursor: 'pointer',
+                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                zIndex: 1
+                            }}
+                            aria-label="播放视频"
+                            role="button"
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                                if (e.key === 'Enter' || e.key === ' ') {
+                                    e.preventDefault();
+                                    handlePlayClick(e);
+                                }
+                            }}
+                        >
+                            <svg
+                                x="0px"
+                                y="0px"
+                                viewBox="0 0 125 80"
+                                enableBackground="new 0 0 125 80"
+                                aria-hidden="true"
+                                style={{
+                                    fill: 'rgb(255, 255, 255)',
+                                    height: '58.25px',
+                                    left: '0px',
+                                    strokeWidth: '0px',
+                                    top: '0px',
+                                    width: '37px',
+                                    position: 'relative',
+                                    color: 'var(--wistia-player-icon-color, #fff)'
+                                }}
+                            >
+                                <path
+                                    fillRule="evenodd"
+                                    clipRule="evenodd"
+                                    fill="currentcolor"
+                                    opacity="1"
+                                    transform="translate(44, 22)"
+                                    d="M12.138 2.173C10.812 1.254 9 2.203 9 3.817v28.366c0 1.613 1.812 2.563 3.138 1.644l20.487-14.183a2 2 0 0 0 0-3.288L12.138 2.173Z"
+                                />
+                            </svg>
+                        </div>
+                    )}
                 </div>
             );
         }
