@@ -157,6 +157,16 @@ const ClassroomPanel = ({
     onRequestSave,
     onViewExample
 }) => {
+    // 调试：组件渲染日志
+    // eslint-disable-next-line no-console
+    console.log('[ClassroomPanel] 组件渲染', {
+        hasTutorial: !!tutorial,
+        tutorialId: tutorial?.tutorialId || tutorial?.id,
+        visible,
+        activeStepIndex,
+        stepsCount: tutorial?.steps?.length || 0
+    });
+    
     const [expanded, setExpanded] = useState(true);
     const [dragPosition, setDragPosition] = useState(() => getDefaultPosition(true));
     const [videoPlaying, setVideoPlaying] = useState(false);
@@ -184,6 +194,20 @@ const ClassroomPanel = ({
     const steps = tutorial?.steps || [];
     const activeStep = steps[activeStepIndex] || steps[0];
     const totalSteps = steps.length;
+    
+    // 调试：当前步骤数据
+    // eslint-disable-next-line no-console
+    console.log('[ClassroomPanel] 当前步骤数据', {
+        activeStepIndex,
+        totalSteps,
+        activeStep: activeStep ? {
+            title: activeStep.title,
+            hasMedia: !!activeStep.media,
+            mediaLength: Array.isArray(activeStep.media) ? activeStep.media.length : 0,
+            media: activeStep.media
+        } : null
+    });
+    
     const formattedDueTime = formatDueTime(tutorial?.dueTime);
     const modeLabel = tutorial?.mode === 'assignment' ? '课堂作业' : '教学教程';
     const tags = tutorial?.tags || [];
@@ -199,9 +223,57 @@ const ClassroomPanel = ({
         // eslint-disable-next-line no-console
         console.log('[ClassroomPanel] 找到图片URL:', mediaPreview);
     }
+    // 查找视频媒体 - 与后端serializer逻辑保持一致
+    // 后端_is_video函数检查：url/src/video字段，以及URL是否包含bilibili/wistia/video等
+    const _isVideo = (item) => {
+        if (!item) return false;
+        
+        // 如果明确标记为video类型
+        if (item.type === 'video') return true;
+        
+        // 检查mime类型
+        if (item.mime && item.mime.includes('video')) return true;
+        
+        // 获取URL（与后端逻辑一致：url/src/video）
+        const url = item.url || item.src || item.video || item.embedUrl || '';
+        if (!url) return false;
+        
+        const urlStr = String(url).toLowerCase();
+        
+        // 后端_is_video判断逻辑：
+        // - .mp4, .webm
+        // - wistia, bilibili
+        // - "video"在URL中（但不是图片）
+        if (urlStr.endsWith('.mp4') || 
+            urlStr.endsWith('.webm') ||
+            urlStr.includes('wistia') ||
+            urlStr.includes('bilibili') ||
+            (urlStr.includes('video') && !urlStr.includes('image'))) {
+            return true;
+        }
+        
+        return false;
+    };
+    
     const videoMedia = Array.isArray(activeStep?.media)
-        ? activeStep.media.find(item => item?.type === 'video')
+        ? activeStep.media.find(_isVideo)
         : null;
+    
+    // 调试日志：输出视频媒体数据
+    // eslint-disable-next-line no-console
+    console.log('[ClassroomPanel] 步骤索引:', activeStepIndex, '步骤标题:', activeStep?.title);
+    if (activeStep?.media && Array.isArray(activeStep.media)) {
+        // eslint-disable-next-line no-console
+        console.log('[ClassroomPanel] 步骤所有媒体:', JSON.stringify(activeStep.media, null, 2));
+        // eslint-disable-next-line no-console
+        console.log('[ClassroomPanel] 找到的视频媒体:', videoMedia);
+        // eslint-disable-next-line no-console
+        console.log('[ClassroomPanel] 视频检测结果:', activeStep.media.map((item, idx) => ({
+            index: idx,
+            item: item,
+            isVideo: _isVideo(item)
+        })));
+    }
     const overlayStyle = useMemo(() => getOverlayStyle(expanded), [expanded]);
 
     const handleDrag = (_, data) => {
@@ -301,7 +373,24 @@ const ClassroomPanel = ({
         // 官方VideoStep结构：视频 + 播放按钮覆盖层
         if (videoMedia) {
             // 如果有视频，显示视频（类似官方VideoStep）+ 官方播放按钮
-            const videoUrl = normalizeBilibiliSrc(videoMedia.embedUrl || videoMedia.url);
+            // 提取视频URL，支持多种字段名（与后端逻辑一致：url/src/video/embedUrl）
+            const rawVideoUrl = videoMedia.url || videoMedia.src || videoMedia.video || videoMedia.embedUrl || '';
+            // eslint-disable-next-line no-console
+            console.log('[ClassroomPanel] 原始视频URL:', rawVideoUrl);
+            // eslint-disable-next-line no-console
+            console.log('[ClassroomPanel] 视频媒体对象:', videoMedia);
+            
+            const videoUrl = normalizeBilibiliSrc(rawVideoUrl);
+            // eslint-disable-next-line no-console
+            console.log('[ClassroomPanel] 处理后的视频URL:', videoUrl);
+            
+            if (!videoUrl || !videoUrl.trim()) {
+                // eslint-disable-next-line no-console
+                console.error('[ClassroomPanel] 视频URL为空或无效，无法显示视频');
+                // eslint-disable-next-line no-console
+                console.error('[ClassroomPanel] rawVideoUrl:', rawVideoUrl);
+            }
+            
             const handlePlayClick = (e) => {
                 e.preventDefault();
                 e.stopPropagation();
@@ -309,79 +398,92 @@ const ClassroomPanel = ({
                 // 点击播放按钮后，添加autoplay参数并重新加载iframe
                 const iframe = e.target.closest('[class*="step-video"]')?.querySelector('iframe');
                 if (iframe) {
-                    const url = new URL(iframe.src);
-                    url.searchParams.set('autoplay', '1');
-                    iframe.src = url.toString();
+                    try {
+                        const url = new URL(iframe.src);
+                        url.searchParams.set('autoplay', '1');
+                        iframe.src = url.toString();
+                    } catch (err) {
+                        // eslint-disable-next-line no-console
+                        console.error('[ClassroomPanel] 更新视频URL失败:', err);
+                    }
                 }
             };
             
-            return (
-                <div className={cardStyles['step-video']} style={{position: 'relative'}}>
-                    <iframe
-                        src={videoUrl}
-                        title={videoMedia.title || '课堂视频'}
-                        allowFullScreen
-                        sandbox="allow-scripts allow-same-origin allow-pointer-lock"
-                        referrerPolicy="no-referrer"
-                        allow="fullscreen"
-                        style={{height: '257px', width: '466px'}}
-                    />
-                    {/* 官方播放按钮覆盖层 - 仅在未播放时显示 */}
-                    {!videoPlaying && (
-                        <div
-                            onClick={handlePlayClick}
-                            style={{
-                                position: 'absolute',
-                                top: 0,
-                                left: 0,
-                                width: '100%',
-                                height: '100%',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                cursor: 'pointer',
-                                backgroundColor: 'rgba(0, 0, 0, 0.3)',
-                                zIndex: 1
-                            }}
-                            aria-label="播放视频"
-                            role="button"
-                            tabIndex={0}
-                            onKeyDown={(e) => {
-                                if (e.key === 'Enter' || e.key === ' ') {
-                                    e.preventDefault();
-                                    handlePlayClick(e);
-                                }
-                            }}
-                        >
-                            <svg
-                                x="0px"
-                                y="0px"
-                                viewBox="0 0 125 80"
-                                aria-hidden="true"
+            // 如果没有有效的视频URL，不显示视频，继续显示图片或标题
+            if (!videoUrl || !videoUrl.trim()) {
+                // eslint-disable-next-line no-console
+                console.warn('[ClassroomPanel] 视频URL无效，跳过视频显示，使用图片或标题');
+                // 继续执行，显示图片或标题
+            } else {
+                // 有有效的视频URL，显示视频
+                return (
+                    <div className={cardStyles['step-video']} style={{position: 'relative'}}>
+                        <iframe
+                            src={videoUrl}
+                            title={videoMedia.title || '课堂视频'}
+                            allowFullScreen
+                            sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+                            referrerPolicy="no-referrer"
+                            allow="fullscreen"
+                            style={{height: '257px', width: '466px'}}
+                        />
+                        {/* 官方播放按钮覆盖层 - 仅在未播放时显示 */}
+                        {!videoPlaying && (
+                            <div
+                                onClick={handlePlayClick}
                                 style={{
-                                    fill: 'rgb(255, 255, 255)',
-                                    height: '58.25px',
-                                    left: '0px',
-                                    strokeWidth: '0px',
-                                    top: '0px',
-                                    width: '37px',
-                                    position: 'relative',
-                                    color: 'var(--wistia-player-icon-color, #fff)'
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: 0,
+                                    width: '100%',
+                                    height: '100%',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    cursor: 'pointer',
+                                    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+                                    zIndex: 1
+                                }}
+                                aria-label="播放视频"
+                                role="button"
+                                tabIndex={0}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' || e.key === ' ') {
+                                        e.preventDefault();
+                                        handlePlayClick(e);
+                                    }
                                 }}
                             >
-                                <path
-                                    fillRule="evenodd"
-                                    clipRule="evenodd"
-                                    fill="currentcolor"
-                                    opacity="1"
-                                    transform="translate(44, 22)"
-                                    d="M12.138 2.173C10.812 1.254 9 2.203 9 3.817v28.366c0 1.613 1.812 2.563 3.138 1.644l20.487-14.183a2 2 0 0 0 0-3.288L12.138 2.173Z"
-                                />
-                            </svg>
-                        </div>
-                    )}
-                </div>
-            );
+                                <svg
+                                    x="0px"
+                                    y="0px"
+                                    viewBox="0 0 125 80"
+                                    aria-hidden="true"
+                                    style={{
+                                        fill: 'rgb(255, 255, 255)',
+                                        height: '58.25px',
+                                        left: '0px',
+                                        strokeWidth: '0px',
+                                        top: '0px',
+                                        width: '37px',
+                                        position: 'relative',
+                                        color: 'var(--wistia-player-icon-color, #fff)'
+                                    }}
+                                >
+                                    <path
+                                        fillRule="evenodd"
+                                        clipRule="evenodd"
+                                        fill="currentcolor"
+                                        opacity="1"
+                                        transform="translate(44, 22)"
+                                        d="M12.138 2.173C10.812 1.254 9 2.203 9 3.817v28.366c0 1.613 1.812 2.563 3.138 1.644l20.487-14.183a2 2 0 0 0 0-3.288L12.138 2.173Z"
+                                    />
+                                </svg>
+                            </div>
+                        )}
+                    </div>
+                );
+            }
         }
         
         // 官方ImageStep结构：标题 + 图片

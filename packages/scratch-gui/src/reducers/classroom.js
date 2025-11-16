@@ -19,6 +19,12 @@ export const classroomInitialState = {
 const tutorial = (state = classroomInitialState.tutorial, action) => {
     switch (action.type) {
     case 'SET_CLASSROOM_TUTORIAL':
+        // eslint-disable-next-line no-console
+        console.log('[Redux] SET_CLASSROOM_TUTORIAL reducer', {
+            tutorialId: action.tutorial?.tutorialId || action.tutorial?.id,
+            stepsCount: action.tutorial?.steps?.length || 0,
+            tutorial: action.tutorial
+        });
         return action.tutorial;
     default:
         return state;

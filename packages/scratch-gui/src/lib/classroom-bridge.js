@@ -115,13 +115,29 @@ class ClassroomBridge {
         if (!event || !event.data || typeof event.data !== 'object') return;
         const {type, payload} = event.data;
         if (type === 'TUTORIAL_CONTEXT') {
+            // eslint-disable-next-line no-console
+            console.log('[ClassroomBridge] 收到 TUTORIAL_CONTEXT 消息', {
+                tutorialId: payload?.tutorialId || payload?.id,
+                stepsCount: payload?.steps?.length || 0,
+                payload
+            });
+            
             this._targetWindow = event.source || window.parent;
             const incomingHash = this._hashPayload(payload);
             const isSamePayload = this._tutorialCacheHash === incomingHash;
             this._tutorialCacheHash = incomingHash;
+            
+            // eslint-disable-next-line no-console
+            console.log('[ClassroomBridge] isSamePayload:', isSamePayload);
+            
             if (!isSamePayload) {
-            this._tutorialCache = payload;
+                this._tutorialCache = payload;
+                // eslint-disable-next-line no-console
+                console.log('[ClassroomBridge] 触发 tutorial 事件', payload);
                 this._emit('tutorial', payload);
+            } else {
+                // eslint-disable-next-line no-console
+                console.log('[ClassroomBridge] 跳过重复的 tutorial payload');
             }
             this._postMessage({
                 type: 'TUTORIAL_CONTEXT_ACK',

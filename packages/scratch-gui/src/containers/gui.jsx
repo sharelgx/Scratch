@@ -58,7 +58,15 @@ class GUI extends React.Component {
         }
         classroomBridge.initialize();
         this.classroomListener = payload => {
+            // eslint-disable-next-line no-console
+            console.log('[GUI] classroomListener 收到 tutorial 事件', {
+                tutorialId: payload?.tutorialId || payload?.id,
+                stepsCount: payload?.steps?.length || 0,
+                payload
+            });
             this.props.onClassroomTutorial(payload);
+            // eslint-disable-next-line no-console
+            console.log('[GUI] 已调用 onClassroomTutorial dispatch');
         };
         this.classroomSubmissionListener = status => {
             if (!status) return;
