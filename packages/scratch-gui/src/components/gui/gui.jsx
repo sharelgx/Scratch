@@ -26,6 +26,7 @@ import Backpack from '../../containers/backpack.jsx';
 import ExtensionsButton from '../extension-button/extension-button.jsx';
 import WebGlModal from '../../containers/webgl-modal.jsx';
 import TipsLibrary from '../../containers/tips-library.jsx';
+import ClassroomPanel from '../../containers/classroom-panel.jsx';
 import Cards from '../../containers/cards.jsx';
 import Alerts from '../../containers/alerts.jsx';
 import DragLayer from '../../containers/drag-layer.jsx';
@@ -198,6 +199,7 @@ const GUIComponent = props => {
                 dir={isRtl ? 'rtl' : 'ltr'}
                 {...componentProps}
             >
+                <ClassroomPanel />
                 {telemetryModalVisible ? (
                     <TelemetryModal
                         isRtl={isRtl}

@@ -45,6 +45,8 @@ import {PLATFORM} from '../lib/platform.js';
 import GUIComponent from '../components/gui/gui.jsx';
 import {GUIStoragePropType} from '../gui-config';
 import {AccountMenuOptionsPropTypes} from '../lib/account-menu-options';
+import classroomBridge from '../lib/classroom-bridge';
+import {setClassroomTutorial, setClassroomSubmissionStatus} from '../reducers/classroom';
 
 class GUI extends React.Component {
     componentDidMount () {
@@ -53,6 +55,31 @@ class GUI extends React.Component {
         this.props.storage.setProjectMetadata?.(this.props.projectId);
         if (this.props.platform) {
             this.props.setPlatform(this.props.platform);
+        }
+        classroomBridge.initialize();
+        this.classroomListener = payload => {
+            this.props.onClassroomTutorial(payload);
+        };
+        this.classroomSubmissionListener = status => {
+            if (!status) return;
+            const payload = status.payload || {};
+            const success = status.type === 'PROJECT_SAVED';
+            this.props.onClassroomSubmission({
+                status: success ? 'success' : 'error',
+                message: payload.errorMessage || payload.message || '',
+                projectId: payload.projectId || null,
+                submissionId: payload.submissionId || null
+            });
+        };
+        classroomBridge.on('tutorial', this.classroomListener);
+        classroomBridge.on('submission-status', this.classroomSubmissionListener);
+        const cached = classroomBridge.getLatestTutorial?.();
+        if (cached) {
+            this.props.onClassroomTutorial(cached);
+        }
+        const cachedStatus = classroomBridge.getLatestSubmission?.();
+        if (cachedStatus) {
+            this.classroomSubmissionListener(cachedStatus);
         }
     }
     componentDidUpdate (prevProps) {
@@ -70,6 +97,15 @@ class GUI extends React.Component {
         }
         if (this.props.shouldStopProject && !prevProps.shouldStopProject) {
             this.props.vm.stopAll();
+        }
+    }
+
+    componentWillUnmount () {
+        if (this.classroomListener) {
+            classroomBridge.off('tutorial', this.classroomListener);
+        }
+        if (this.classroomSubmissionListener) {
+            classroomBridge.off('submission-status', this.classroomSubmissionListener);
         }
     }
     render () {
@@ -144,7 +180,10 @@ GUI.propTypes = {
     userOwnsProject: PropTypes.bool,
     // TODO: Is this unused?
     hideTutorialProjects: PropTypes.bool,
-    vm: PropTypes.instanceOf(VM).isRequired
+    vm: PropTypes.instanceOf(VM).isRequired,
+    onClassroomTutorial: PropTypes.func.isRequired
+    ,
+    onClassroomSubmission: PropTypes.func.isRequired
 };
 
 GUI.defaultProps = {
@@ -184,7 +223,9 @@ const mapStateToProps = (state, ownProps) => {
         ),
         telemetryModalVisible: state.scratchGui.modals.telemetryModal,
         tipsLibraryVisible: state.scratchGui.modals.tipsLibrary,
-        vm: state.scratchGui.vm
+        vm: state.scratchGui.vm,
+        classroomTutorial: state.scratchGui.classroom.tutorial,
+        classroomVisible: state.scratchGui.classroom.visible
     };
 };
 
@@ -197,7 +238,9 @@ const mapDispatchToProps = dispatch => ({
     onRequestCloseBackdropLibrary: () => dispatch(closeBackdropLibrary()),
     onRequestCloseCostumeLibrary: () => dispatch(closeCostumeLibrary()),
     onRequestCloseDebugModal: () => dispatch(closeDebugModal()),
-    onRequestCloseTelemetryModal: () => dispatch(closeTelemetryModal())
+    onRequestCloseTelemetryModal: () => dispatch(closeTelemetryModal()),
+    onClassroomTutorial: tutorial => dispatch(setClassroomTutorial(tutorial)),
+    onClassroomSubmission: payload => dispatch(setClassroomSubmissionStatus(payload))
 });
 
 const ConnectedGUI = injectIntl(connect(
