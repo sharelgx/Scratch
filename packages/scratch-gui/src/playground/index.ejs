@@ -16,8 +16,77 @@
     <meta name="google" value="notranslate">
     <link rel="shortcut icon" href="static/favicon.ico">
     <title><%= htmlWebpackPlugin.options.title %></title>
+    <style>
+      /* 全局预加载动画 - 火箭上下起伏 */
+      #app-loader {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #4C97FF;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+      }
+      
+      #app-loader .loader-content {
+        text-align: center;
+      }
+      
+      #app-loader .rocket {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 1.5rem;
+        animation: rocketFloat 2s ease-in-out infinite;
+      }
+      
+      /* 正弦函数上下起伏动画 */
+      @keyframes rocketFloat {
+        0% { transform: translateY(0px); }
+        50% { transform: translateY(-25px); }
+        100% { transform: translateY(0px); }
+      }
+      
+      #app-loader .loading-text {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: white;
+        margin-bottom: 0.5rem;
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+      
+      #app-loader .loading-subtitle {
+        font-size: 1rem;
+        color: rgba(255, 255, 255, 0.8);
+        font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
+      }
+    </style>
   </head>
   <body>
+    <!-- 全局预加载动画 -->
+    <div id="app-loader">
+      <div class="loader-content">
+        <svg 
+          class="rocket"
+          xmlns="http://www.w3.org/2000/svg" 
+          viewBox="0 0 24 24" 
+          fill="none" 
+          stroke="white" 
+          stroke-width="2" 
+          stroke-linecap="round" 
+          stroke-linejoin="round"
+        >
+          <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"></path>
+          <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"></path>
+          <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"></path>
+          <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"></path>
+        </svg>
+        <div class="loading-text">Scratch 3.0</div>
+        <div class="loading-subtitle">正在加载编辑器...</div>
+      </div>
+    </div>
     <% if (htmlWebpackPlugin.options.gtm_id) { %>
       <!-- Google Tag Manager (noscript) -->
       <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=<%- htmlWebpackPlugin.options.gtm_id %><%= htmlWebpackPlugin.options.gtm_env_auth %>" height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>

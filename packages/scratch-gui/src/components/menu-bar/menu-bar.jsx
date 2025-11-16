@@ -528,36 +528,26 @@ class MenuBar extends React.Component {
                                         <MenuItem
                                             onClick={() => {
                                                 console.log('💾 用户点击"立即保存"菜单');
-                                                
-                                                // 尝试多种方式调用保存处理器
+
                                                 let saved = false;
-                                                
-                                                // 方式1：尝试访问父窗口的处理器
-                                                try {
-                                                    if (window.parent && window.parent !== window && window.parent.scratchSaveToOnlineHandler) {
-                                                        console.log('✅ 调用父窗口的 scratchSaveToOnlineHandler');
-                                                        window.parent.scratchSaveToOnlineHandler();
+
+                                                if (window.parent && window.parent !== window) {
+                                                    try {
+                                                        console.log('📨 通过 postMessage 请求保存');
+                                                        window.parent.postMessage({
+                                                            type: 'SCRATCH_SAVE_REQUEST'
+                                                        }, '*');
                                                         saved = true;
+                                                    } catch (e) {
+                                                        console.warn('⚠️ 发送保存请求失败:', e.message);
                                                     }
-                                                } catch (e) {
-                                                    console.warn('⚠️ 无法访问父窗口处理器（跨域）:', e.message);
                                                 }
-                                                
-                                                // 方式2：通过 postMessage 通知父窗口
-                                                if (!saved && window.parent && window.parent !== window) {
-                                                    console.log('📨 通过 postMessage 请求保存');
-                                                    window.parent.postMessage({
-                                                        type: 'SCRATCH_SAVE_REQUEST'
-                                                    }, '*');
-                                                    saved = true;
-                                                }
-                                                
-                                                // 方式3：如果都失败，显示提示
+
                                                 if (!saved) {
                                                     console.error('❌ 无法调用保存功能');
                                                     alert('保存功能未就绪');
                                                 }
-                                                
+
                                                 this.props.onRequestCloseFile();
                                             }}
                                         >
