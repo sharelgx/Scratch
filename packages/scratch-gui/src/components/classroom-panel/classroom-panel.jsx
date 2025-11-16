@@ -1,6 +1,6 @@
 import classNames from 'classnames';
 import PropTypes from 'prop-types';
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import Draggable from 'react-draggable';
 
 import cardStyles from '../cards/card.css';
@@ -160,7 +160,6 @@ const ClassroomPanel = ({
     const [expanded, setExpanded] = useState(true);
     const [dragPosition, setDragPosition] = useState(() => getDefaultPosition(true));
     const tutorialKey = tutorial?.tutorialId ?? tutorial?.id ?? tutorial?.title ?? 'default';
-    const contentRef = useRef(null);
 
     useEffect(() => {
         setDragPosition(getDefaultPosition(expanded));
@@ -197,58 +196,15 @@ const ClassroomPanel = ({
     const videoMedia = Array.isArray(activeStep?.media)
         ? activeStep.media.find(item => item?.type === 'video')
         : null;
-    const submissionStatus = submission?.status || 'idle';
-    const isSaving = submissionStatus === 'saving';
-    const isSuccess = submissionStatus === 'success';
-    const isError = submissionStatus === 'error';
-    const statusLabel = (() => {
-        if (isSaving) return '正在保存…';
-        if (isSuccess) return '保存成功';
-        if (isError) return '保存失败';
-        switch (submissionStatus) {
-        case 'submitted':
-            return '已提交';
-        case 'saved':
-            return '已保存';
-        default:
-            return null;
-        }
-    })();
-    const statusTone = (() => {
-        if (isSaving) return 'saving';
-        if (isSuccess) return 'success';
-        if (isError) return 'error';
-        if (submissionStatus === 'submitted') return 'success';
-        return null;
-    })();
-
     const overlayStyle = useMemo(() => getOverlayStyle(expanded), [expanded]);
 
     const handleDrag = (_, data) => {
         setDragPosition({x: data.x, y: data.y});
     };
 
-    const handleRequestSave = () => {
-        if (isSaving) return;
-        onRequestSave?.(activeStepIndex);
-    };
-
     const handleToggleExpanded = () => {
         setExpanded(prev => !prev);
     };
-
-    useEffect(() => {
-        if (!contentRef.current) return;
-        const iframeNodes = contentRef.current.querySelectorAll('iframe');
-        iframeNodes.forEach(iframe => {
-            const src = iframe.getAttribute('src') || '';
-            if (!src || !/bilibili\.com/i.test(src)) return;
-            iframe.setAttribute('sandbox', 'allow-scripts allow-same-origin allow-pointer-lock allowfullscreen');
-            iframe.setAttribute('referrerpolicy', 'no-referrer');
-            iframe.setAttribute('allowfullscreen', 'true');
-            iframe.setAttribute('allow', 'fullscreen');
-        });
-    }, [tutorialKey, activeStepIndex, activeStep?.content]);
 
     if (!tutorial) return null;
 
@@ -266,11 +222,11 @@ const ClassroomPanel = ({
     const renderStepDots = () => {
         if (totalSteps <= 1) return null;
         return (
-            <div className={cardStyles.stepsList}>
+            <div className={cardStyles['steps-list']}>
                 {steps.map((step, index) => (
                     <div
                         key={step?.id || `pip-${index}`}
-                        className={index === activeStepIndex ? cardStyles.activeStepPip : cardStyles.inactiveStepPip}
+                        className={index === activeStepIndex ? cardStyles['active-step-pip'] : cardStyles['inactiveStepPip']}
                         onClick={() => onStepChange(index)}
                         role="button"
                         tabIndex={0}
@@ -287,11 +243,11 @@ const ClassroomPanel = ({
         }
         const disablePrev = activeStepIndex === 0;
         const disableNext = activeStepIndex >= totalSteps - 1;
-    return (
+        return (
             <>
-                <div className={disablePrev ? cardStyles.hidden : cardStyles.leftCard} />
+                <div className={disablePrev ? cardStyles.hidden : cardStyles['left-card']} />
                 <div
-                    className={disablePrev ? cardStyles.hidden : cardStyles.leftButton}
+                    className={disablePrev ? cardStyles.hidden : cardStyles['left-button']}
                     onClick={() => {
                         if (!disablePrev) onPrevStep();
                     }}
@@ -304,9 +260,9 @@ const ClassroomPanel = ({
                         src={leftArrow}
                     />
                 </div>
-                <div className={disableNext ? cardStyles.hidden : cardStyles.rightCard} />
+                <div className={disableNext ? cardStyles.hidden : cardStyles['right-card']} />
                 <div
-                    className={disableNext ? cardStyles.hidden : cardStyles.rightButton}
+                    className={disableNext ? cardStyles.hidden : cardStyles['right-button']}
                     onClick={() => {
                         if (!disableNext) onNextStep();
                     }}
@@ -334,91 +290,43 @@ const ClassroomPanel = ({
         if (!activeStep && !totalSteps) {
             return <div className={styles.empty}>暂无步骤，请稍后再试</div>;
         }
+        // 1:1像素级复刻官方引导卡：只包含标题和图片/视频
+        // 官方ImageStep结构：标题 + 图片
+        // 官方VideoStep结构：视频
+        if (videoMedia) {
+            // 如果有视频，显示视频（类似官方VideoStep）
+            return (
+                <div className={cardStyles['step-video']}>
+                    <iframe
+                        src={normalizeBilibiliSrc(videoMedia.embedUrl || videoMedia.url)}
+                        title={videoMedia.title || '课堂视频'}
+                        allowFullScreen
+                        sandbox="allow-scripts allow-same-origin allow-pointer-lock"
+                        referrerPolicy="no-referrer"
+                        allow="fullscreen"
+                        style={{height: '257px', width: '466px'}}
+                    />
+                </div>
+            );
+        }
+        
+        // 官方ImageStep结构：标题 + 图片
         return (
             <>
-                <div className={styles.stepTitle}>{activeStep?.title || `第 ${activeStepIndex + 1} 步`}</div>
+                <div className={cardStyles['step-title']}>
+                    {activeStep?.title || `第 ${activeStepIndex + 1} 步`}
+                </div>
                 {mediaPreview ? (
-                    <div className={styles.stepMedia}>
-                        <img src={mediaPreview} alt="步骤示例" />
-            </div>
-                ) : (
-                    <div className={styles.stepMediaPlaceholder}>无示例图</div>
-                )}
-                {videoMedia ? (
-                    <div className={styles.stepVideo}>
-                        <iframe
-                            src={normalizeBilibiliSrc(videoMedia.embedUrl)}
-                            title={videoMedia.title || '课堂视频'}
-                            allowFullScreen
-                            sandbox="allow-scripts allow-same-origin allow-pointer-lock allowfullscreen"
-                            referrerPolicy="no-referrer"
-                            allow="fullscreen"
+                    <div className={cardStyles['step-image-container']}>
+                        <img
+                            className={cardStyles['step-image']}
+                            src={mediaPreview}
+                            alt="步骤示例"
+                            draggable={false}
+                            key={mediaPreview}
                         />
                     </div>
                 ) : null}
-                <div className={styles.stepDescription}>
-                    {activeStep?.content ? (
-                            <div
-                            className={styles.stepRichContent}
-                            ref={contentRef}
-                            dangerouslySetInnerHTML={{__html: activeStep.content}}
-                            />
-                        ) : (
-                            <div className={styles.stepContentPlaceholder}>
-                            教师尚未提供此步骤说明
-                            </div>
-                        )}
-                </div>
-                <div className={styles.ctaRow}>
-                    <button
-                        className={styles.secondaryButton}
-                        onClick={() => onViewExample?.(tutorial)}
-                    >
-                        查看示例
-                    </button>
-                    <button
-                        className={classNames(styles.primaryButton, {
-                            [styles.primaryButtonSaving]: isSaving,
-                            [styles.primaryButtonSuccess]: isSuccess
-                        })}
-                        onClick={handleRequestSave}
-                        disabled={isSaving}
-                    >
-                        {isSaving ? '保存中…' : (isSuccess ? '已提交' : '提交作业')}
-                    </button>
-                </div>
-                {(statusLabel || submission?.message) ? (
-                    <div
-                        className={classNames(styles.statusMessage, {
-                            [styles.statusSuccess]: isSuccess,
-                            [styles.statusError]: isError
-                        })}
-                    >
-                        {submission?.message || statusLabel || (isSuccess ? '作品已成功保存，老师可见' : '提交失败，请稍后重试')}
-                    </div>
-                ) : null}
-                <div
-                    className={styles.statusRow}
-                    aria-live="polite"
-                    aria-atomic="true"
-                >
-                    {statusLabel ? (
-                        <span
-                            className={classNames(
-                                styles.statusChip,
-                                {
-                                    [styles.statusChipSaving]: statusTone === 'saving',
-                                    [styles.statusChipSuccess]: statusTone === 'success',
-                                    [styles.statusChipError]: statusTone === 'error'
-                                }
-                            )}
-                        >
-                            {statusLabel}
-                        </span>
-                    ) : (
-                        <span className={styles.statusChipMuted}>等待操作</span>
-                    )}
-                </div>
             </>
         );
     };
@@ -435,59 +343,38 @@ const ClassroomPanel = ({
             >
                 <div className={cardStyles.cardContainer}>
                     <div className={cardStyles.card}>
-                        <div className={cardStyles.headerButtons}>
-                            <div className={styles.headerContent}>
-                                <div className={styles.modeAndTitle}>
-                                    <span className={styles.modeTag}>{modeLabel}</span>
-                                    <div className={styles.assignmentTitle}>{tutorial.assignmentTitle || tutorial.title || '课堂作业'}</div>
-                                </div>
-                                {tutorial.description ? (
-                                    <div className={styles.subTitle}>{tutorial.description}</div>
-                                ) : null}
-                                <div className={styles.metaRow}>
-                                    {tutorial.estimatedMinutes ? (
-                                        <span className={styles.metaItem}>{tutorial.estimatedMinutes} 分钟</span>
-                                    ) : null}
-                                    {formattedDueTime ? (
-                                        <span className={styles.metaItem}>截止 {formattedDueTime}</span>
-                                    ) : null}
-                                    {tutorial.requirements ? (
-                                        <span className={styles.metaItem}>要求：{tutorial.requirements}</span>
-                                    ) : null}
-                                </div>
-                                {tags.length ? (
-                                    <div className={styles.tagList}>
-                                        {tags.map(tag => (
-                                            <span key={tag} className={styles.tagPill}>{tag}</span>
-                ))}
-            </div>
-                                ) : null}
-                                {renderStepDots()}
+                        <div className={expanded ? cardStyles['header-buttons'] : classNames(cardStyles['header-buttons'], cardStyles['header-buttons-hidden'])}>
+                            {/* 官方样式：左侧标题区域 */}
+                            <div className={cardStyles['all-button']} style={{cursor: 'default', pointerEvents: 'none'}}>
+                                {tutorial.assignmentTitle || tutorial.title || modeLabel}
                             </div>
-                            <div className={cardStyles.headerButtonsRight}>
-                                <button
-                                    className={styles.headerAction}
+                            {/* 官方样式：中间步骤圆点 */}
+                            {renderStepDots()}
+                            {/* 官方样式：右侧按钮区域 */}
+                            <div className={cardStyles['header-buttons-right']}>
+                                <div
+                                    className={cardStyles['shrink-expand-button']}
                                     onClick={handleToggleExpanded}
                                 >
                                     <img
                                         draggable={false}
                                         src={expanded ? shrinkIcon : expandIcon}
                                     />
-                                    {expanded ? '收起' : '展开'}
-                                </button>
-            <button
-                                    className={styles.headerAction}
+                                    {expanded ? 'Shrink' : 'Expand'}
+                                </div>
+                                <div
+                                    className={cardStyles['remove-button']}
                                     onClick={onClose}
-            >
+                                >
                                     <img
-                                        draggable={false}
+                                        className={cardStyles['close-icon']}
                                         src={closeIcon}
                                     />
-                                    关闭
-            </button>
+                                    Close
+                                </div>
                             </div>
                         </div>
-                        <div className={expanded ? cardStyles.stepBody : cardStyles.hidden}>
+                        <div className={expanded ? cardStyles['step-body'] : cardStyles.hidden}>
                             {stepContent()}
                         </div>
                         {renderNavButtons()}

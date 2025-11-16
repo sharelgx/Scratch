@@ -179,6 +179,13 @@ body .card-container {
     height: 256px;
 }
 
+.step-image-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0 0.5rem 0.5rem;
+}
+
 .step-image {
     max-width: 450px;
     max-height: 200px;
@@ -187,7 +194,6 @@ body .card-container {
     border: 1px solid #ddd;
     border-radius: 0.5rem;
     overflow: hidden;
-    margin: 0 0.5rem 0.5rem;
 }
 
 .decks, .resources {
